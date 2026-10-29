@@ -180,7 +180,11 @@ enum VaultStore {
             UserDefaults.standard.set(url.path, forKey: pathDefaultsKey)
         }
         if activeScopedFolderURL?.standardizedFileURL != url.standardizedFileURL {
+            // Clear the old URL immediately after releasing its scope. If access to
+            // the new folder fails, retaining the old URL would falsely imply that
+            // its security scope is still active and prevent a later retry.
             _ = activeScopedFolderURL?.stopAccessingSecurityScopedResource()
+            activeScopedFolderURL = nil
             if url.startAccessingSecurityScopedResource() {
                 activeScopedFolderURL = url
             }
