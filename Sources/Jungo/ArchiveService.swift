@@ -37,35 +37,86 @@ extension JungoArchiveDocument {
         }
     }
 
-    /// Imports as additional boards to avoid silently replacing existing local data.
+    /// Imports additional boards in an isolated context so a failed import cannot
+    /// roll back unrelated edits in the UI context or leave a partial import there.
     func importInto(_ context: ModelContext) throws {
         try validate()
-        var boardIDMap: [UUID: UUID] = [:]
-        var columnIDMap: [UUID: UUID] = [:]
-        var taskIDMap: [UUID: UUID] = [:]
-        let existingBoardCount = (try? context.fetch(FetchDescriptor<Board>()).count) ?? 0
-        for record in boards.sorted(by: { $0.sortOrder < $1.sortOrder }) {
-            let newID = UUID()
-            boardIDMap[record.id] = newID
-            context.insert(Board(id: newID, title: record.title, sortOrder: existingBoardCount + record.sortOrder, createdAt: record.createdAt, isArchived: record.isArchived ?? false))
+
+        let importContext = ModelContext(context.container)
+        importContext.undoManager = nil
+
+        do {
+            var boardIDMap: [UUID: UUID] = [:]
+            var columnIDMap: [UUID: UUID] = [:]
+            var taskIDMap: [UUID: UUID] = [:]
+
+            let existingBoards = try importContext.fetch(FetchDescriptor<Board>())
+            let nextBoardSortOrder = (existingBoards.map(\\.sortOrder).max() ?? -1) + 1
+
+            for record in boards.sorted(by: { $0.sortOrder < $1.sortOrder }) {
+                let newID = UUID()
+                boardIDMap[record.id] = newID
+                importContext.insert(Board(
+                    id: newID,
+                    title: record.title,
+                    sortOrder: nextBoardSortOrder + record.sortOrder,
+                    createdAt: record.createdAt,
+                    isArchived: record.isArchived ?? false
+                ))
+            }
+
+            for record in columns.sorted(by: { $0.sortOrder < $1.sortOrder }) {
+                guard let boardID = boardIDMap[record.boardID] else {
+                    throw ArchiveError.brokenReferences
+                }
+                let newID = UUID()
+                columnIDMap[record.id] = newID
+                importContext.insert(BoardColumn(
+                    id: newID,
+                    title: record.title,
+                    sortOrder: record.sortOrder,
+                    boardID: boardID
+                ))
+            }
+
+            for record in tasks {
+                guard let columnID = columnIDMap[record.columnID] else {
+                    throw ArchiveError.brokenReferences
+                }
+                let newID = UUID()
+                taskIDMap[record.id] = newID
+                importContext.insert(TaskCard(
+                    id: newID,
+                    title: record.title,
+                    details: record.details,
+                    labelsText: record.labelsText ?? "",
+                    priority: TaskPriority(rawValue: record.priorityRawValue) ?? .normal,
+                    sortOrder: record.sortOrder,
+                    columnID: columnID,
+                    createdAt: record.createdAt,
+                    dueDate: record.dueDate,
+                    isInTrash: record.isInTrash ?? false
+                ))
+            }
+
+            for record in checklistItems ?? [] {
+                guard let taskID = taskIDMap[record.taskID] else {
+                    throw ArchiveError.brokenReferences
+                }
+                importContext.insert(TaskChecklistItem(
+                    id: UUID(),
+                    title: record.title,
+                    isCompleted: record.isCompleted,
+                    sortOrder: record.sortOrder,
+                    taskID: taskID
+                ))
+            }
+
+            try importContext.save()
+        } catch {
+            importContext.rollback()
+            throw error
         }
-        for record in columns.sorted(by: { $0.sortOrder < $1.sortOrder }) {
-            guard let boardID = boardIDMap[record.boardID] else { throw ArchiveError.brokenReferences }
-            let newID = UUID()
-            columnIDMap[record.id] = newID
-            context.insert(BoardColumn(id: newID, title: record.title, sortOrder: record.sortOrder, boardID: boardID))
-        }
-        for record in tasks {
-            guard let columnID = columnIDMap[record.columnID] else { throw ArchiveError.brokenReferences }
-            let newID = UUID()
-            taskIDMap[record.id] = newID
-            context.insert(TaskCard(id: newID, title: record.title, details: record.details, labelsText: record.labelsText ?? "", priority: TaskPriority(rawValue: record.priorityRawValue) ?? .normal, sortOrder: record.sortOrder, columnID: columnID, createdAt: record.createdAt, dueDate: record.dueDate, isInTrash: record.isInTrash ?? false))
-        }
-        for record in checklistItems ?? [] {
-            guard let taskID = taskIDMap[record.taskID] else { throw ArchiveError.brokenReferences }
-            context.insert(TaskChecklistItem(id: UUID(), title: record.title, isCompleted: record.isCompleted, sortOrder: record.sortOrder, taskID: taskID))
-        }
-        try context.save()
     }
 }
 
@@ -77,7 +128,7 @@ enum ArchiveError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .unsupportedVersion(let version): "Версия архива \(version) не поддерживается."
+        case .unsupportedVersion(let version): "Версия архива \\(version) не поддерживается."
         case .duplicateIdentifiers: "Архив содержит повторяющиеся идентификаторы."
         case .brokenReferences: "В архиве есть задачи или колонки без родительской записи."
         case .emptyTitles: "В архиве есть записи без названия."
