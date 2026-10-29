@@ -688,6 +688,9 @@ struct RootView: View {
                 columnID: newColumnID,
                 dueDate: task.dueDate
             )
+            // Preserve unknown raw values even when the current UI falls back
+            // to .normal for priorities introduced by a newer app version.
+            copy.priorityRawValue = task.priorityRawValue
             modelContext.insert(copy)
             taskIDMap[task.id] = copy.id
         }
@@ -732,6 +735,8 @@ struct RootView: View {
             columnID: source.columnID,
             dueDate: source.dueDate
         )
+        // Duplication must not normalize a priority value this app doesn't know.
+        duplicate.priorityRawValue = source.priorityRawValue
         modelContext.insert(duplicate)
 
         var reorderedTasks = columnTasks

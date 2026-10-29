@@ -29,6 +29,32 @@ final class ArchiveValidationTests: XCTestCase {
         }
     }
 
+    func testRejectsDuplicateIdentifiersForBoardsColumnsAndChecklistItems() {
+        let duplicateBoards = [
+            ArchiveValidation.BoardRecord(id: boardID, title: "First"),
+            ArchiveValidation.BoardRecord(id: boardID, title: "Second")
+        ]
+        XCTAssertThrowsError(try validate(boards: duplicateBoards)) {
+            XCTAssertEqual($0 as? ArchiveValidationError, .duplicateIdentifiers)
+        }
+
+        let duplicateColumns = [
+            ArchiveValidation.ColumnRecord(id: columnID, title: "First", boardID: boardID),
+            ArchiveValidation.ColumnRecord(id: columnID, title: "Second", boardID: boardID)
+        ]
+        XCTAssertThrowsError(try validate(columns: duplicateColumns)) {
+            XCTAssertEqual($0 as? ArchiveValidationError, .duplicateIdentifiers)
+        }
+
+        let duplicateChecklistItems = [
+            ArchiveValidation.ChecklistRecord(id: checklistID, title: "First", taskID: taskID),
+            ArchiveValidation.ChecklistRecord(id: checklistID, title: "Second", taskID: taskID)
+        ]
+        XCTAssertThrowsError(try validate(checklistItems: duplicateChecklistItems)) {
+            XCTAssertEqual($0 as? ArchiveValidationError, .duplicateIdentifiers)
+        }
+    }
+
     func testRejectsColumnWithoutBoard() {
         let columns = [
             ArchiveValidation.ColumnRecord(id: columnID, title: "Column", boardID: UUID())

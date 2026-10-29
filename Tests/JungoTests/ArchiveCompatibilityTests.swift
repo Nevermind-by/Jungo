@@ -56,6 +56,29 @@ final class ArchiveCompatibilityTests: XCTestCase {
         )
     }
 
+    func testRoundTripsUnknownPriorityRawValueWithoutNormalization() throws {
+        let boardID = UUID()
+        let columnID = UUID()
+        let taskID = UUID()
+        let archive = JungoArchiveDocument(
+            formatVersion: 1,
+            exportedAt: Date(timeIntervalSince1970: 1_735_689_600),
+            boards: [.init(id: boardID, title: "Board", sortOrder: 0, createdAt: Date(timeIntervalSince1970: 1_735_689_600))],
+            columns: [.init(id: columnID, title: "Todo", sortOrder: 0, boardID: boardID)],
+            tasks: [.init(id: taskID, title: "Future task", details: "", priorityRawValue: "critical_v2", sortOrder: 0, columnID: columnID, createdAt: Date(timeIntervalSince1970: 1_735_689_600))],
+            checklistItems: []
+        )
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        let encoded = try encoder.encode(archive)
+        let decoded = try decoder.decode(JungoArchiveDocument.self, from: encoded)
+
+        XCTAssertEqual(decoded.tasks.first?.priorityRawValue, "critical_v2")
+    }
+
     func testRoundTripsCurrentArchiveFields() throws {
         let boardID = UUID()
         let columnID = UUID()
