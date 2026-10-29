@@ -9,6 +9,8 @@ let iconsetURL = outputURL.deletingLastPathComponent().appendingPathComponent("J
 // The requested output can live inside a not-yet-created app bundle.
 // Ensure the parent exists before writing any iconset PNG files.
 try fileManager.createDirectory(at: outputURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+// Create the iconset directory before the first PNG is written.
+try fileManager.createDirectory(at: iconsetURL, withIntermediateDirectories: true)
 
 func drawIcon(size: Int) throws -> Data {
     guard let bitmap = NSBitmapImageRep(
