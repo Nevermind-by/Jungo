@@ -34,3 +34,13 @@ final class TaskOrderingTests: XCTestCase {
         XCTAssertEqual(result.destination, ["a"])
     }
 }
+
+final class TaskLabelsTests: XCTestCase {
+    func testParsesCommaSeparatedLabelsAndTrimsWhitespace() {
+        XCTAssertEqual(TaskLabels.parse(" work, urgent , personal "), ["work", "urgent", "personal"])
+    }
+
+    func testIgnoresEmptyAndCaseInsensitiveDuplicateLabels() {
+        XCTAssertEqual(TaskLabels.parse("QA,, qa, Release, release, "), ["QA", "Release"])
+    }
+}
