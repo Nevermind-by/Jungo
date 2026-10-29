@@ -123,7 +123,12 @@ func drawIcon(size: Int) throws -> Data {
         linePath.fill()
     }
 
+    context.flushGraphics()
     NSGraphicsContext.restoreGraphicsState()
+
+    // Explicitly set logical size so AppKit emits a correctly sized icon image
+    // for each iconset representation, rather than relying on inferred DPI.
+    bitmap.size = NSSize(width: size, height: size)
 
     guard let tiff = bitmap.tiffRepresentation,
           let pngBitmap = NSBitmapImageRep(data: tiff),
