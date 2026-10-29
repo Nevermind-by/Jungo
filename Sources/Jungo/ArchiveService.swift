@@ -2,52 +2,11 @@ import Foundation
 import SwiftData
 import JungoCore
 
-struct JungoArchive: Codable {
-    var formatVersion: Int
-    var exportedAt: Date
-    var boards: [BoardRecord]
-    var columns: [ColumnRecord]
-    var tasks: [TaskRecord]
-    var checklistItems: [ChecklistRecord]?
+typealias JungoArchive = JungoArchiveDocument
 
-    struct BoardRecord: Codable {
-        var id: UUID
-        var title: String
-        var sortOrder: Int
-        var createdAt: Date
-        var isArchived: Bool?
-    }
-
-    struct ColumnRecord: Codable {
-        var id: UUID
-        var title: String
-        var sortOrder: Int
-        var boardID: UUID
-    }
-
-    struct TaskRecord: Codable {
-        var id: UUID
-        var title: String
-        var details: String
-        var labelsText: String?
-        var priorityRawValue: String
-        var sortOrder: Int
-        var columnID: UUID
-        var createdAt: Date
-        var dueDate: Date?
-        var isInTrash: Bool?
-    }
-
-    struct ChecklistRecord: Codable {
-        var id: UUID
-        var title: String
-        var isCompleted: Bool
-        var sortOrder: Int
-        var taskID: UUID
-    }
-
-    static func capture(boards: [Board], columns: [BoardColumn], tasks: [TaskCard], checklistItems: [TaskChecklistItem]) -> JungoArchive {
-        JungoArchive(
+extension JungoArchiveDocument {
+    static func capture(boards: [Board], columns: [BoardColumn], tasks: [TaskCard], checklistItems: [TaskChecklistItem]) -> JungoArchiveDocument {
+        JungoArchiveDocument(
             formatVersion: 1,
             exportedAt: .now,
             boards: boards.map { .init(id: $0.id, title: $0.title, sortOrder: $0.sortOrder, createdAt: $0.createdAt, isArchived: $0.isArchived) },
