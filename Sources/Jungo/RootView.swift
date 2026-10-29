@@ -64,7 +64,7 @@ struct RootView: View {
     }
 
     private var archivedBoards: [Board] {
-        boards.filter(\\.isArchived).sorted { $0.sortOrder < $1.sortOrder }
+        boards.filter(\.isArchived).sorted { $0.sortOrder < $1.sortOrder }
     }
 
     private var visibleColumns: [BoardColumn] {
@@ -645,7 +645,7 @@ struct RootView: View {
             showTrash = false
         }
         if saveChanges() {
-            statusMessage = "Доска «\\(board.title)» перемещена в архив."
+            statusMessage = "Доска «\(board.title)» перемещена в архив."
         }
     }
 
@@ -655,7 +655,7 @@ struct RootView: View {
         selectedBoardID = board.id
         showTrash = false
         if saveChanges() {
-            statusMessage = "Доска «\\(board.title)» восстановлена из архива."
+            statusMessage = "Доска «\(board.title)» восстановлена из архива."
         }
     }
 
