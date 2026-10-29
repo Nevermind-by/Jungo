@@ -837,19 +837,15 @@ struct RootView: View {
             for (index, item) in reordered.enumerated() {
                 item.sortOrder = index
             }
-            if saveChanges() {
-                statusMessage = "Порядок задачи «\(task.title)» изменён."
-            }
+            _ = saveChanges()
 
         case .left:
             guard sourceIndex > 0 else { return }
             moveTask(task.id, to: visibleColumns[sourceIndex - 1], before: nil)
-            statusMessage = "Задача «\(task.title)» перемещена в «\(visibleColumns[sourceIndex - 1].title)»."
 
         case .right:
             guard sourceIndex + 1 < visibleColumns.count else { return }
             moveTask(task.id, to: visibleColumns[sourceIndex + 1], before: nil)
-            statusMessage = "Задача «\(task.title)» перемещена в «\(visibleColumns[sourceIndex + 1].title)»."
 
         @unknown default:
             return
