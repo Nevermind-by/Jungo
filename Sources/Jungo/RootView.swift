@@ -71,16 +71,6 @@ struct RootView: View {
             if let column = visibleColumns.first { createTask(in: column) }
         }
         .sheet(item: $selectedTask) { task in TaskEditorSheet(task: task, onSave: saveChanges) }
-        .alert("Название доски", isPresented: $isNamingBoard) {
-            TextField("Название", text: $nameInput)
-            Button("Отмена", role: .cancel) { nameInput = ""; editingBoardID = nil }
-            Button("Сохранить", action: saveBoardName).disabled(nameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-        }
-        .alert("Название колонки", isPresented: $isNamingColumn) {
-            TextField("Название", text: $nameInput)
-            Button("Отмена", role: .cancel) { nameInput = ""; editingColumnID = nil }
-            Button("Сохранить", action: saveColumnName).disabled(nameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-        }
         .confirmationDialog("Удалить доску и все её задачи?", isPresented: $showDeleteBoardConfirmation, titleVisibility: .visible) {
             Button("Удалить доску", role: .destructive, action: deleteSelectedBoard)
             Button("Отмена", role: .cancel) {}
@@ -97,15 +87,10 @@ struct RootView: View {
             Button("Удалить задачу", role: .destructive) { deletePendingTask() }
             Button("Отмена", role: .cancel) { taskPendingDeletionID = nil }
         }
-        .alert("Не удалось выполнить операцию", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
-            Button("ОК") { errorMessage = nil }
+        .alert("Jungo", isPresented: Binding(get: { errorMessage != nil || statusMessage != nil }, set: { if !$0 { errorMessage = nil; statusMessage = nil } })) {
+            Button("ОК") { errorMessage = nil; statusMessage = nil }
         } message: {
-            Text(errorMessage ?? "Неизвестная ошибка.")
-        }
-        .alert("Jungo", isPresented: Binding(get: { statusMessage != nil }, set: { if !$0 { statusMessage = nil } })) {
-            Button("ОК") { statusMessage = nil }
-        } message: {
-            Text(statusMessage ?? "")
+            Text(errorMessage ?? statusMessage ?? "")
         }
     }
 
@@ -149,6 +134,11 @@ struct RootView: View {
                 .font(.caption)
             }
             .padding()
+        }
+        .alert("Название доски", isPresented: $isNamingBoard) {
+            TextField("Название", text: $nameInput)
+            Button("Отмена", role: .cancel) { nameInput = ""; editingBoardID = nil }
+            Button("Сохранить", action: saveBoardName).disabled(nameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
     }
 
@@ -207,6 +197,11 @@ struct RootView: View {
                     Button("Удалить доску…", role: .destructive) { showDeleteBoardConfirmation = true }
                 } label: { Image(systemName: "ellipsis.circle") }
             }
+        }
+        .alert("Название колонки", isPresented: $isNamingColumn) {
+            TextField("Название", text: $nameInput)
+            Button("Отмена", role: .cancel) { nameInput = ""; editingColumnID = nil }
+            Button("Сохранить", action: saveColumnName).disabled(nameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
     }
 
