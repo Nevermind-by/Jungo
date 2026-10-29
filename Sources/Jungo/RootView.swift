@@ -9,6 +9,7 @@ struct RootView: View {
     @Query(sort: \BoardColumn.sortOrder) private var allColumns: [BoardColumn]
     @Query(sort: \TaskCard.sortOrder) private var allTasks: [TaskCard]
 
+    @AppStorage("jungo.selectedBoardID") private var persistedSelectedBoardID = ""
     @State private var selectedBoardID: UUID?
     @State private var editingBoardID: UUID?
     @State private var editingColumnID: UUID?
@@ -67,6 +68,9 @@ struct RootView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .task { seedIfNeeded() }
+        .onChange(of: selectedBoardID) { _, newValue in
+            if let newValue { persistedSelectedBoardID = newValue.uuidString }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .jungoCreateTask)) { _ in
             if let column = visibleColumns.first { createTask(in: column) }
         }
@@ -416,7 +420,11 @@ struct RootView: View {
 
     private func seedIfNeeded() {
         guard boards.isEmpty else {
-            if selectedBoardID == nil { selectedBoardID = boards.sorted(by: { $0.sortOrder < $1.sortOrder }).first?.id }
+            if let restoredID = UUID(uuidString: persistedSelectedBoardID), boards.contains(where: { $0.id == restoredID }) {
+                selectedBoardID = restoredID
+            } else if selectedBoardID == nil {
+                selectedBoardID = boards.sorted(by: { $0.sortOrder < $1.sortOrder }).first?.id
+            }
             return
         }
         let board = Board(title: "Моя доска")
