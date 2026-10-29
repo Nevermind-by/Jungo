@@ -30,6 +30,7 @@ struct JungoArchive: Codable {
         var sortOrder: Int
         var columnID: UUID
         var createdAt: Date
+        var dueDate: Date?
     }
 
     static func capture(boards: [Board], columns: [BoardColumn], tasks: [TaskCard]) -> JungoArchive {
@@ -38,7 +39,9 @@ struct JungoArchive: Codable {
             exportedAt: .now,
             boards: boards.map { .init(id: $0.id, title: $0.title, sortOrder: $0.sortOrder, createdAt: $0.createdAt) },
             columns: columns.map { .init(id: $0.id, title: $0.title, sortOrder: $0.sortOrder, boardID: $0.boardID) },
-            tasks: tasks.map { .init(id: $0.id, title: $0.title, details: $0.details, priorityRawValue: $0.priorityRawValue, sortOrder: $0.sortOrder, columnID: $0.columnID, createdAt: $0.createdAt) }
+            tasks: tasks.map {
+                .init(id: $0.id, title: $0.title, details: $0.details, priorityRawValue: $0.priorityRawValue, sortOrder: $0.sortOrder, columnID: $0.columnID, createdAt: $0.createdAt, dueDate: $0.dueDate)
+            }
         )
     }
 
@@ -46,7 +49,8 @@ struct JungoArchive: Codable {
         guard formatVersion == 1 else { throw ArchiveError.unsupportedVersion(formatVersion) }
         let boardIDs = Set(boards.map(\.id))
         let columnIDs = Set(columns.map(\.id))
-        guard boardIDs.count == boards.count, columnIDs.count == columns.count else { throw ArchiveError.duplicateIdentifiers }
+        guard boardIDs.count == boards.count, columnIDs.count == columns.count,
+              Set(tasks.map(\.id)).count == tasks.count else { throw ArchiveError.duplicateIdentifiers }
         guard columns.allSatisfy({ boardIDs.contains($0.boardID) }),
               tasks.allSatisfy({ columnIDs.contains($0.columnID) }) else { throw ArchiveError.brokenReferences }
         guard boards.allSatisfy({ !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }),
@@ -59,10 +63,11 @@ struct JungoArchive: Codable {
         try validate()
         var boardIDMap: [UUID: UUID] = [:]
         var columnIDMap: [UUID: UUID] = [:]
+        let existingBoardCount = (try? context.fetch(FetchDescriptor<Board>()).count) ?? 0
         for record in boards.sorted(by: { $0.sortOrder < $1.sortOrder }) {
             let newID = UUID()
             boardIDMap[record.id] = newID
-            context.insert(Board(id: newID, title: record.title, sortOrder: record.sortOrder, createdAt: record.createdAt))
+            context.insert(Board(id: newID, title: record.title, sortOrder: existingBoardCount + record.sortOrder, createdAt: record.createdAt))
         }
         for record in columns.sorted(by: { $0.sortOrder < $1.sortOrder }) {
             guard let boardID = boardIDMap[record.boardID] else { throw ArchiveError.brokenReferences }
@@ -72,7 +77,7 @@ struct JungoArchive: Codable {
         }
         for record in tasks {
             guard let columnID = columnIDMap[record.columnID] else { throw ArchiveError.brokenReferences }
-            context.insert(TaskCard(id: UUID(), title: record.title, details: record.details, priority: TaskPriority(rawValue: record.priorityRawValue) ?? .normal, sortOrder: record.sortOrder, columnID: columnID, createdAt: record.createdAt))
+            context.insert(TaskCard(id: UUID(), title: record.title, details: record.details, priority: TaskPriority(rawValue: record.priorityRawValue) ?? .normal, sortOrder: record.sortOrder, columnID: columnID, createdAt: record.createdAt, dueDate: record.dueDate))
         }
         try context.save()
     }
