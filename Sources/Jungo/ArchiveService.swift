@@ -14,6 +14,7 @@ struct JungoArchive: Codable {
         var title: String
         var sortOrder: Int
         var createdAt: Date
+        var isArchived: Bool?
     }
 
     struct ColumnRecord: Codable {
@@ -48,7 +49,7 @@ struct JungoArchive: Codable {
         JungoArchive(
             formatVersion: 1,
             exportedAt: .now,
-            boards: boards.map { .init(id: $0.id, title: $0.title, sortOrder: $0.sortOrder, createdAt: $0.createdAt) },
+            boards: boards.map { .init(id: $0.id, title: $0.title, sortOrder: $0.sortOrder, createdAt: $0.createdAt, isArchived: $0.isArchived) },
             columns: columns.map { .init(id: $0.id, title: $0.title, sortOrder: $0.sortOrder, boardID: $0.boardID) },
             tasks: tasks.map {
                 .init(id: $0.id, title: $0.title, details: $0.details, labelsText: $0.labelsText, priorityRawValue: $0.priorityRawValue, sortOrder: $0.sortOrder, columnID: $0.columnID, createdAt: $0.createdAt, dueDate: $0.dueDate, isInTrash: $0.isInTrash)
@@ -84,7 +85,7 @@ struct JungoArchive: Codable {
         for record in boards.sorted(by: { $0.sortOrder < $1.sortOrder }) {
             let newID = UUID()
             boardIDMap[record.id] = newID
-            context.insert(Board(id: newID, title: record.title, sortOrder: existingBoardCount + record.sortOrder, createdAt: record.createdAt))
+            context.insert(Board(id: newID, title: record.title, sortOrder: existingBoardCount + record.sortOrder, createdAt: record.createdAt, isArchived: record.isArchived ?? false))
         }
         for record in columns.sorted(by: { $0.sortOrder < $1.sortOrder }) {
             guard let boardID = boardIDMap[record.boardID] else { throw ArchiveError.brokenReferences }
