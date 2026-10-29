@@ -18,6 +18,7 @@ struct RootView: View {
     @State private var isNamingColumn = false
     @State private var nameInput = ""
     @State private var selectedTask: TaskCard?
+    @State private var showQuickAdd = false
     @State private var taskPendingDeletionID: UUID?
     @State private var taskPendingPermanentDeletionID: UUID?
     @State private var columnPendingDeletionID: UUID?
@@ -93,6 +94,10 @@ struct RootView: View {
             editingBoardID = nil
             nameInput = ""
             isNamingBoard = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .jungoQuickAddTask)) { _ in
+            guard !showTrash, !visibleColumns.isEmpty else { return }
+            showQuickAdd = true
         }
         .onReceive(NotificationCenter.default.publisher(for: .jungoToggleTrash)) { _ in
             showTrash.toggle()
@@ -230,6 +235,13 @@ struct RootView: View {
             Spacer(minLength: 0)
         }
         .background(Color(nsColor: .windowBackgroundColor))
+        .sheet(isPresented: $showQuickAdd) {
+            QuickAddTaskSheet(
+                columns: visibleColumns,
+                initialColumnID: visibleColumns.first?.id,
+                onCreate: createQuickTask
+            )
+        }
         .toolbar {
             ToolbarItemGroup {
                 Menu {
@@ -237,6 +249,10 @@ struct RootView: View {
                         showTrash.toggle()
                     }
                     if !showTrash {
+                        Button("Быстро добавить задачу…", systemImage: "text.badge.plus") {
+                            showQuickAdd = true
+                        }
+                        .disabled(visibleColumns.isEmpty)
                         Menu {
                             Button {
                                 selectedLabel = ""
@@ -381,6 +397,16 @@ struct RootView: View {
         modelContext.insert(task)
         guard saveChanges() else { return }
         selectedTask = task
+    }
+
+    private func createQuickTask(title: String, details: String, columnID: UUID) -> Bool {
+        let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanTitle.isEmpty, let column = visibleColumns.first(where: { $0.id == columnID }) else { return false }
+        let task = TaskCard(title: cleanTitle, details: details.trimmingCharacters(in: .whitespacesAndNewlines), sortOrder: tasks(in: column).count, columnID: column.id)
+        modelContext.insert(task)
+        guard saveChanges() else { return false }
+        statusMessage = "Задача «\(cleanTitle)» создана."
+        return true
     }
 
     private func moveTask(_ taskID: UUID, to destination: BoardColumn, before targetID: UUID?) {
@@ -696,6 +722,7 @@ private struct TaskEditorSheet: View {
     @Bindable var task: TaskCard
     let onSave: () -> Bool
     @State private var hasDueDate = false
+    @State private var showDescriptionPreview = false
     @State private var newChecklistTitle = ""
 
     private var checklistItems: [TaskChecklistItem] {
@@ -708,9 +735,35 @@ private struct TaskEditorSheet: View {
             TextField("Название", text: $task.title).textFieldStyle(.roundedBorder).font(.title3)
             TextField("Метки через запятую", text: $task.labelsText).textFieldStyle(.roundedBorder)
             VStack(alignment: .leading, spacing: 6) {
-                Text("Описание").font(.subheadline.weight(.medium))
-                TextEditor(text: $task.details).frame(minHeight: 120).padding(4)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(.quaternary))
+                HStack {
+                    Text("Описание").font(.subheadline.weight(.medium))
+                    Spacer()
+                    Picker("Режим описания", selection: $showDescriptionPreview) {
+                        Text("Редактировать").tag(false)
+                        Text("Просмотр Markdown").tag(true)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .frame(width: 210)
+                }
+                if showDescriptionPreview {
+                    ScrollView {
+                        Group {
+                            if let rendered = try? AttributedString(markdown: task.details) {
+                                Text(rendered)
+                            } else {
+                                Text(task.details)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(8)
+                    }
+                    .frame(minHeight: 120)
+                    .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 8))
+                } else {
+                    TextEditor(text: $task.details).frame(minHeight: 120).padding(4)
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(.quaternary))
+                }
             }
             Picker("Приоритет", selection: $task.priority) {
                 ForEach(TaskPriority.allCases) { priority in Text(priority.title).tag(priority) }
@@ -803,5 +856,55 @@ private struct TaskLabelPill: View {
             .foregroundStyle(tint)
             .background(tint.opacity(0.13), in: Capsule())
             .accessibilityLabel("Метка: \(label)")
+    }
+}
+
+
+private struct QuickAddTaskSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let columns: [BoardColumn]
+    let onCreate: (String, String, UUID) -> Bool
+
+    @State private var title = ""
+    @State private var details = ""
+    @State private var selectedColumnID: UUID?
+
+    init(columns: [BoardColumn], initialColumnID: UUID?, onCreate: @escaping (String, String, UUID) -> Bool) {
+        self.columns = columns
+        self.onCreate = onCreate
+        _selectedColumnID = State(initialValue: initialColumnID)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Быстро добавить задачу").font(.title2.bold())
+            TextField("Название задачи", text: $title)
+                .textFieldStyle(.roundedBorder)
+                .font(.title3)
+            TextField("Описание (необязательно)", text: $details)
+                .textFieldStyle(.roundedBorder)
+            Picker("Колонка", selection: $selectedColumnID) {
+                ForEach(columns) { column in
+                    Text(column.title).tag(Optional(column.id))
+                }
+            }
+            .disabled(columns.isEmpty)
+            HStack {
+                Spacer()
+                Button("Отмена", role: .cancel) { dismiss() }
+                Button("Создать") {
+                    guard let selectedColumnID, onCreate(title, details, selectedColumnID) else { return }
+                    dismiss()
+                }
+                .keyboardShortcut(.defaultAction)
+                .buttonStyle(.borderedProminent)
+                .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || selectedColumnID == nil)
+            }
+        }
+        .padding(24)
+        .frame(width: 440)
+        .onAppear {
+            if selectedColumnID == nil { selectedColumnID = columns.first?.id }
+        }
     }
 }
