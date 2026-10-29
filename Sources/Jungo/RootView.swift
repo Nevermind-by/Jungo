@@ -127,7 +127,7 @@ struct RootView: View {
             return
         }
         savedTaskFiltersJSON = json
-        statusMessage = "Фильтр «\\(normalizedName)» сохранён."
+        statusMessage = "Фильтр «\(normalizedName)» сохранён."
     }
 
     private func deleteSavedFilter(_ filter: SavedTaskFilter) {
@@ -268,7 +268,7 @@ struct RootView: View {
                 }
             }
             if !archivedBoards.isEmpty {
-                Section("Архив · \\(archivedBoards.count)") {
+                Section("Архив · \(archivedBoards.count)") {
                     ForEach(archivedBoards) { board in
                         Label(board.title, systemImage: "archivebox")
                             .tag(board.id)
@@ -838,18 +838,18 @@ struct RootView: View {
                 item.sortOrder = index
             }
             if saveChanges() {
-                statusMessage = "Порядок задачи «\\(task.title)» изменён."
+                statusMessage = "Порядок задачи «\(task.title)» изменён."
             }
 
         case .left:
             guard sourceIndex > 0 else { return }
             moveTask(task.id, to: visibleColumns[sourceIndex - 1], before: nil)
-            statusMessage = "Задача «\\(task.title)» перемещена в «\\(visibleColumns[sourceIndex - 1].title)»."
+            statusMessage = "Задача «\(task.title)» перемещена в «\(visibleColumns[sourceIndex - 1].title)»."
 
         case .right:
             guard sourceIndex + 1 < visibleColumns.count else { return }
             moveTask(task.id, to: visibleColumns[sourceIndex + 1], before: nil)
-            statusMessage = "Задача «\\(task.title)» перемещена в «\\(visibleColumns[sourceIndex + 1].title)»."
+            statusMessage = "Задача «\(task.title)» перемещена в «\(visibleColumns[sourceIndex + 1].title)»."
 
         @unknown default:
             return
