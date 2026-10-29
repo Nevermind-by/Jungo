@@ -47,12 +47,19 @@ enum VaultStore {
         return defaultStoreURL
     }
 
+    /// Use SwiftData's own default configuration to discover its URL instead of
+    /// guessing where the framework stores the database. This keeps the Finder
+    /// location aligned with the same configuration used for existing installs.
+    private static var defaultConfiguration: ModelConfiguration {
+        ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+    }
+
     static var defaultFolderURL: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        defaultStoreURL.deletingLastPathComponent()
     }
 
     static var defaultStoreURL: URL {
-        defaultFolderURL.appendingPathComponent("default.store")
+        defaultConfiguration.url
     }
 
     static func makeContainer() throws -> ModelContainer {
@@ -70,8 +77,8 @@ enum VaultStore {
                 cloudKitDatabase: .none
             )
         } else {
-            // Keep the original SwiftData default configuration for existing installs.
-            configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+            // Keep the same SwiftData default configuration used before Vault settings.
+            configuration = defaultConfiguration
         }
 
         let container = try ModelContainer(for: schema, configurations: [configuration])
@@ -310,7 +317,8 @@ enum VaultStore {
         for candidate in [
             url,
             URL(fileURLWithPath: url.path + "-wal"),
-            URL(fileURLWithPath: url.path + "-shm")
+            URL(fileURLWithPath: url.path + "-shm"),
+            URL(fileURLWithPath: url.path + "-journal")
         ] where fileManager.fileExists(atPath: candidate.path) {
             try? fileManager.removeItem(at: candidate)
         }
