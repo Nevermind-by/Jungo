@@ -27,7 +27,7 @@ SwiftData ModelContainer и ModelContext обеспечивают локальн
 JungoArchiveDocument из JungoCore задаёт Codable JSON-формат версии 1; SwiftData-операции вынесены в app-расширение. Статус архива доски, метки, срок, корзина и пункты чек-листа опциональны при декодировании, поэтому старые архивы читаются без этих полей. Декодирование старого формата покрыто unit-тестом. Перед импортом проверяются версия формата, уникальность ID, ссылки между сущностями и непустые названия. Импорт создаёт новые UUID и новые доски, сохраняет существующие данные и выполняется через изолированный контекст. После успешного импорта метод возвращает ID последней добавленной доски, поэтому интерфейс выбирает импортированную доску без зависимости от момента обновления @Query.
 
 ### Packaging and CI
-Scripts/build-app.sh собирает release executable, генерирует AppIcon.icns, создаёт bundle metadata и подписывает локальную сборку ad-hoc. Scripts/package-release.sh выполняет Developer ID signing, notarization и staple при наличии настроенных учётных данных. GitHub Actions workflow на macOS 26 запускает unit-тесты, собирает bundle и проверяет plist/иконку.
+Scripts/build-app.sh собирает release executable, генерирует AppIcon.icns, создаёт bundle metadata и подписывает локальную сборку ad-hoc. Версия CFBundleShortVersionString и CFBundleVersion задаются через JUNGO_VERSION и JUNGO_BUILD_NUMBER с проверкой формата; package-release включает версию в имя ZIP. Scripts/package-release.sh выполняет Developer ID signing, notarization и staple при наличии настроенных учётных данных. GitHub Actions workflow на macOS 26 запускает unit-тесты, собирает bundle и проверяет plist/иконку.
 
 ## Основные сценарии
 

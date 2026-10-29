@@ -4,12 +4,23 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_NAME="Jungo"
 APP_PATH="${1:-$ROOT_DIR/dist/Jungo.app}"
+APP_VERSION="${JUNGO_VERSION:-0.1.0}"
+BUILD_NUMBER="${JUNGO_BUILD_NUMBER:-1}"
 EXECUTABLE="$ROOT_DIR/.build/release/$APP_NAME"
 CONTENTS="$APP_PATH/Contents"
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "Jungo .app packaging requires macOS." >&2
   exit 1
+fi
+
+if [[ ! "$APP_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "JUNGO_VERSION must use MAJOR.MINOR.PATCH format (for example 1.0.0)." >&2
+  exit 2
+fi
+if [[ ! "$BUILD_NUMBER" =~ ^[1-9][0-9]*$ ]]; then
+  echo "JUNGO_BUILD_NUMBER must be a positive integer." >&2
+  exit 2
 fi
 
 swift build --package-path "$ROOT_DIR" -c release --product "$APP_NAME"
@@ -25,7 +36,7 @@ cp "$EXECUTABLE" "$CONTENTS/MacOS/$APP_NAME"
 swift "$ROOT_DIR/Scripts/generate-icon.swift" "$CONTENTS/Resources/AppIcon.icns"
 chmod 755 "$CONTENTS/MacOS/$APP_NAME"
 
-cat > "$CONTENTS/Info.plist" <<'PLIST'
+cat > "$CONTENTS/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -49,9 +60,9 @@ cat > "$CONTENTS/Info.plist" <<'PLIST'
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.1.0</string>
+    <string>$APP_VERSION</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>$BUILD_NUMBER</string>
     <key>LSMinimumSystemVersion</key>
     <string>26.0</string>
     <key>LSApplicationCategoryType</key>

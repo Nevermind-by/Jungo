@@ -13,7 +13,11 @@
     Scripts/build-app.sh
     Scripts/run-app.sh
 
-Scripts/build-app.sh генерирует иконку, собирает release executable и создаёт development bundle с ad-hoc подписью. Это локальная сборка, не notarized-релиз.
+Scripts/build-app.sh генерирует иконку, собирает release executable и создаёт development bundle с ad-hoc подписью. Это локальная сборка, не notarized-релиз. Версия по умолчанию — 0.1.0, build number — 1. Их можно переопределить через `JUNGO_VERSION` и `JUNGO_BUILD_NUMBER`; версия должна быть в формате MAJOR.MINOR.PATCH, номер сборки — положительным целым числом.
+
+Пример сборки с другой версией:
+
+    JUNGO_VERSION="1.0.0" JUNGO_BUILD_NUMBER="12" Scripts/build-app.sh
 
 ## Настройка релизной подписи
 
@@ -28,9 +32,9 @@ Scripts/build-app.sh генерирует иконку, собирает release
 
 4. Собрать подписанный и notarized ZIP:
 
-       DEVELOPER_ID="Developer ID Application: Your Name (TEAMID)" NOTARY_PROFILE="JungoNotary" Scripts/package-release.sh
+       JUNGO_VERSION="1.0.0" JUNGO_BUILD_NUMBER="12" DEVELOPER_ID="Developer ID Application: Your Name (TEAMID)" NOTARY_PROFILE="JungoNotary" Scripts/package-release.sh
 
-Не сохраняй Apple ID пароль, app-specific password, сертификаты или другие секреты в репозитории. Скрипт проверяет подпись, отправляет архив на notarization, прикрепляет ticket и создаёт dist/Jungo-macOS.zip.
+Не сохраняй Apple ID пароль, app-specific password, сертификаты или другие секреты в репозитории. Скрипт проверяет подпись, отправляет архив на notarization, прикрепляет ticket и создаёт dist/Jungo-1.0.0-macOS.zip (имя по умолчанию содержит версию).
 
 ## GitHub Actions
 

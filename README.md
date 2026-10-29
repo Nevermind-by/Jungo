@@ -50,7 +50,7 @@ Jungo — персональная доска задач с нативным Swi
     xcrun notarytool store-credentials "JungoNotary" --apple-id "APPLE_ID" --team-id "TEAM_ID" --password "APP_SPECIFIC_PASSWORD"
     DEVELOPER_ID="Developer ID Application: Your Name (TEAMID)" NOTARY_PROFILE="JungoNotary" Scripts/package-release.sh
 
-Скрипт подписывает приложение с hardened runtime, проверяет подпись, отправляет архив на нотариальное заверение, прикрепляет ticket и создаёт dist/Jungo-macOS.zip. Реальную подпись и нотариализацию можно выполнить только с действующими учётными данными разработчика.
+Скрипт подписывает приложение с hardened runtime, проверяет подпись, отправляет архив на нотариальное заверение, прикрепляет ticket и создаёт ZIP с версией в имени (например, `dist/Jungo-1.0.0-macOS.zip`). Версию и номер сборки можно задать через `JUNGO_VERSION` и `JUNGO_BUILD_NUMBER`. Реальную подпись и нотариализацию можно выполнить только с действующими учётными данными разработчика.
 
 ## Локальные данные и резервная копия
 
