@@ -40,8 +40,9 @@ struct SaveTaskFilterSheet: View {
                     .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
-        .padding(22)
-        .frame(width: 360)
+        .padding(24)
+        .frame(width: 380)
+        .background(JungoCanvasBackground())
     }
 
     private func save() {
@@ -90,6 +91,7 @@ struct ManageSavedFiltersSheet: View {
                     .padding(.vertical, 3)
                 }
                 .listStyle(.inset)
+                .scrollContentBackground(.hidden)
             }
             HStack {
                 Spacer()
@@ -97,8 +99,9 @@ struct ManageSavedFiltersSheet: View {
                     .keyboardShortcut(.defaultAction)
             }
         }
-        .padding(20)
-        .frame(width: 440, height: 360)
+        .padding(22)
+        .frame(width: 460, height: 380)
+        .background(JungoCanvasBackground())
     }
 }
 
@@ -133,6 +136,7 @@ struct LabelColorSettingsSheet: View {
                     .padding(.vertical, 2)
                 }
                 .listStyle(.inset)
+                .scrollContentBackground(.hidden)
             }
             HStack {
                 Button("Сбросить цвета") { labelColorsJSON = "{}" }
@@ -142,8 +146,9 @@ struct LabelColorSettingsSheet: View {
                     .keyboardShortcut(.defaultAction)
             }
         }
-        .padding(20)
-        .frame(width: 420, height: 420)
+        .padding(22)
+        .frame(width: 440, height: 440)
+        .background(JungoCanvasBackground())
     }
 
     private func colorBinding(for label: String) -> Binding<String> {
