@@ -1094,6 +1094,8 @@ struct RootView: View {
             let importedBoardID = try archive.importInto(modelContext)
             if let importedBoardID {
                 selectedBoardID = importedBoardID
+                showTrash = false
+                clearFilters()
             }
             statusMessage = "Импортировано досок: \(archive.boards.count). Существующие данные не заменялись."
         } catch {
