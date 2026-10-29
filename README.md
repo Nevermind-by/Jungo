@@ -1,41 +1,41 @@
 # Jungo
 
-**A native, local-first Kanban app for macOS.**
+**Нативный локальный Kanban для macOS 26 Tahoe и новее.**
 
-Jungo is an independent project to build a fast, thoughtfully designed Kanban board that feels at home on the Mac. The repository is being bootstrapped; product scope and architecture are documented in [`docs/`](docs/).
+Jungo — персональная доска задач с быстрым вводом, системным интерфейсом и локальным хранением через SwiftData. Аккаунт и интернет для основной работы не нужны.
 
-## Product principles
+## Статус
 
-- **Native first:** Swift and SwiftUI, with AppKit where it improves the macOS experience.
-- **Local-first:** core task management must work without an account or network connection.
-- **Fast capture:** creating and moving tasks should take as few interactions as possible.
-- **Keyboard-friendly:** important actions should be discoverable and have shortcuts.
-- **Trustworthy data:** changes persist reliably; export and backup are part of the product design.
-- **Focused scope:** ship a useful personal Kanban before adding collaboration or integrations.
+Репозиторий находится в активной разработке. Сейчас реализован первый SwiftUI-каркас: боковая панель, доска с тремя колонками, карточки, создание/редактирование/удаление задач, поиск и локальное сохранение. Функции, отмеченные в дорожной карте, ещё не считаются реализованными.
 
-## Planned first release
+## Запуск
 
-- Multiple boards and configurable columns.
-- Task cards with descriptions, priorities, labels, due dates and checklists.
-- Drag-and-drop between columns and reorder within a column.
-- Search, filters and quick capture.
-- Local persistence, backup/export and recovery from interrupted writes.
-- Light and dark appearance, accessibility and macOS keyboard conventions.
+Требования: macOS 26 Tahoe+, Swift 6 toolchain и Xcode Command Line Tools.
 
-This list is a starting proposal, not a claim that these features are implemented yet.
+```bash
+swift test
+swift run Jungo
+```
 
-## Documentation
+Сейчас используется Swift Package Manager executable target. Для распространения как обычного устанавливаемого `.app` потребуется отдельный этап упаковки и подписи.
 
-- [Product vision and requirements](docs/PRODUCT.md)
-- [Roadmap](docs/ROADMAP.md)
-- [Architecture proposal](docs/ARCHITECTURE.md)
-- [Development workflow](docs/DEVELOPMENT.md)
-- [Decisions and open questions](docs/DECISIONS.md)
+## Принципы
 
-## Status
+- **Native first:** SwiftUI и системные паттерны macOS.
+- **Local first:** SwiftData без облачной синхронизации.
+- **Fast capture:** быстро создать и отредактировать задачу.
+- **Keyboard-friendly:** основные действия постепенно получают горячие клавиши.
+- **Data safety:** сохранение, экспорт и восстановление должны быть проверяемыми.
+- **Focused scope:** сначала полезный личный Kanban, без аккаунтов и backend.
 
-**Planning / repository bootstrap.** No application implementation has been added yet.
+## Документация
 
-## License
+- [Продукт и требования](docs/PRODUCT.md)
+- [Дорожная карта](docs/ROADMAP.md)
+- [Архитектура](docs/ARCHITECTURE.md)
+- [Разработка и Git workflow](docs/DEVELOPMENT.md)
+- [Решения и открытые вопросы](docs/DECISIONS.md)
 
-Not selected yet. Do not assume this project is open source under a particular license until a license file is added.
+## Git workflow
+
+Каждая функция разрабатывается в отдельной ветке. Изменения собираются в законченный блок, тестируются, оформляются одним осмысленным коммитом или небольшим набором связанных коммитов и проходят PR перед слиянием в `main`.
