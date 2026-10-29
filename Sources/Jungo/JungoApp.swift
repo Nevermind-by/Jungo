@@ -11,7 +11,6 @@ struct JungoApp: App {
         GlobalHotKeyManager.shared.start()
         do {
             let container = try VaultStore.makeContainer()
-            container.mainContext.undoManager = UndoManager()
             modelContainer = container
             startupError = nil
         } catch {
