@@ -1179,13 +1179,27 @@ private struct TaskCardView: View {
     }
 }
 
+private struct ChecklistDraft: Identifiable {
+    let id: UUID
+    var title: String
+    var isCompleted: Bool
+}
+
 private struct TaskEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \TaskChecklistItem.sortOrder) private var allChecklistItems: [TaskChecklistItem]
-    @Bindable var task: TaskCard
+    @Query(sort: \\TaskChecklistItem.sortOrder) private var allChecklistItems: [TaskChecklistItem]
+
+    let task: TaskCard
     let onSave: () -> Bool
-    @State private var hasDueDate = false
+
+    @State private var draftTitle = ""
+    @State private var draftLabelsText = ""
+    @State private var draftDetails = ""
+    @State private var draftPriority: TaskPriority = .normal
+    @State private var draftHasDueDate = false
+    @State private var draftDueDate = Date.now
+    @State private var draftChecklistItems: [ChecklistDraft] = []
     @State private var showDescriptionPreview = false
     @State private var newChecklistTitle = ""
 
@@ -1196,8 +1210,8 @@ private struct TaskEditorSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             Text("Задача").font(.title2.bold())
-            TextField("Название", text: $task.title).textFieldStyle(.roundedBorder).font(.title3)
-            TextField("Метки через запятую", text: $task.labelsText).textFieldStyle(.roundedBorder)
+            TextField("Название", text: $draftTitle).textFieldStyle(.roundedBorder).font(.title3)
+            TextField("Метки через запятую", text: $draftLabelsText).textFieldStyle(.roundedBorder)
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     Text("Описание").font(.subheadline.weight(.medium))
@@ -1213,10 +1227,10 @@ private struct TaskEditorSheet: View {
                 if showDescriptionPreview {
                     ScrollView {
                         Group {
-                            if let rendered = try? AttributedString(markdown: task.details) {
+                            if let rendered = try? AttributedString(markdown: draftDetails) {
                                 Text(rendered)
                             } else {
-                                Text(task.details)
+                                Text(draftDetails)
                             }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1225,28 +1239,44 @@ private struct TaskEditorSheet: View {
                     .frame(minHeight: 120)
                     .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 8))
                 } else {
-                    TextEditor(text: $task.details).frame(minHeight: 120).padding(4)
+                    TextEditor(text: $draftDetails).frame(minHeight: 120).padding(4)
                         .overlay(RoundedRectangle(cornerRadius: 8).stroke(.quaternary))
                 }
             }
-            Picker("Приоритет", selection: $task.priority) {
+            Picker("Приоритет", selection: $draftPriority) {
                 ForEach(TaskPriority.allCases) { priority in Text(priority.title).tag(priority) }
             }
             .pickerStyle(.segmented)
-            Toggle("Установить срок", isOn: $hasDueDate)
-                .onChange(of: hasDueDate) { _, enabled in if enabled && task.dueDate == nil { task.dueDate = .now }; if !enabled { task.dueDate = nil } }
-            if hasDueDate {
-                DatePicker("Срок", selection: Binding(get: { task.dueDate ?? .now }, set: { task.dueDate = $0 }), displayedComponents: .date)
+            Toggle("Установить срок", isOn: $draftHasDueDate)
+                .onChange(of: draftHasDueDate) { _, enabled in
+                    if enabled && task.dueDate == nil { draftDueDate = .now }
+                }
+            if draftHasDueDate {
+                DatePicker("Срок", selection: $draftDueDate, displayedComponents: .date)
             }
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text("Чек-лист").font(.subheadline.weight(.semibold))
                     Spacer()
-                    Text("\(checklistItems.filter(\.isCompleted).count)/\(checklistItems.count)")
+                    Text("\(draftChecklistItems.filter(\\.isCompleted).count)/\(draftChecklistItems.count)")
                         .font(.caption).foregroundStyle(.secondary)
                 }
-                ForEach(checklistItems) { item in
-                    ChecklistItemRow(item: item, onSave: onSave)
+                ForEach($draftChecklistItems) { $item in
+                    HStack(spacing: 8) {
+                        Toggle("Выполнено", isOn: $item.isCompleted)
+                            .labelsHidden()
+                            .accessibilityLabel("Выполнено: \\(item.title)")
+                        TextField("Пункт чек-листа", text: $item.title)
+                            .textFieldStyle(.roundedBorder)
+                        Button(role: .destructive) {
+                            draftChecklistItems.removeAll { $0.id == item.id }
+                        } label: {
+                            Image(systemName: "xmark.circle")
+                        }
+                        .buttonStyle(.plain)
+                        .help("Удалить пункт")
+                        .accessibilityLabel("Удалить пункт: \\(item.title)")
+                    }
                 }
                 HStack {
                     TextField("Новый пункт", text: $newChecklistTitle)
@@ -1258,48 +1288,67 @@ private struct TaskEditorSheet: View {
             HStack {
                 Spacer()
                 Button("Отмена", role: .cancel) { dismiss() }
-                Button("Сохранить") {
-                    if onSave() { dismiss() }
-                }
-                .keyboardShortcut(.defaultAction).buttonStyle(.borderedProminent)
+                Button("Сохранить", action: saveDraft)
+                    .keyboardShortcut(.defaultAction).buttonStyle(.borderedProminent)
             }
         }
         .padding(26)
         .frame(width: 480)
         .background(JungoCanvasBackground())
-        .onAppear { hasDueDate = task.dueDate != nil }
+        .onAppear {
+            draftTitle = task.title
+            draftLabelsText = task.labelsText
+            draftDetails = task.details
+            draftPriority = task.priority
+            draftHasDueDate = task.dueDate != nil
+            draftDueDate = task.dueDate ?? .now
+            draftChecklistItems = checklistItems.map {
+                ChecklistDraft(id: $0.id, title: $0.title, isCompleted: $0.isCompleted)
+            }
+        }
     }
 
     private func addChecklistItem() {
         let title = newChecklistTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return }
-        modelContext.insert(TaskChecklistItem(title: title, sortOrder: checklistItems.count, taskID: task.id))
+        draftChecklistItems.append(ChecklistDraft(id: UUID(), title: title, isCompleted: false))
         newChecklistTitle = ""
-        _ = onSave()
     }
-}
 
-private struct ChecklistItemRow: View {
-    @Environment(\.modelContext) private var modelContext
-    @Bindable var item: TaskChecklistItem
-    let onSave: () -> Bool
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Toggle(isOn: $item.isCompleted) {
-                Text(item.title).strikethrough(item.isCompleted).foregroundStyle(item.isCompleted ? .secondary : .primary)
-            }
-            .toggleStyle(.checkbox)
-            Button(role: .destructive) {
-                modelContext.delete(item)
-                _ = onSave()
-            } label: {
-                Image(systemName: "xmark.circle").foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-            .help("Удалить пункт")
+    private func saveDraft() {
+        task.title = draftTitle
+        task.labelsText = draftLabelsText
+        task.details = draftDetails
+        // Keep unknown future priority values intact unless the user changes the selection.
+        if draftPriority != task.priority {
+            task.priority = draftPriority
         }
-        .onChange(of: item.isCompleted) { _, _ in _ = onSave() }
+        task.dueDate = draftHasDueDate ? draftDueDate : nil
+
+        let draftIDs = Set(draftChecklistItems.map(\\.id))
+        for item in checklistItems where !draftIDs.contains(item.id) {
+            modelContext.delete(item)
+        }
+        let existingByID = Dictionary(uniqueKeysWithValues: checklistItems.map { ($0.id, $0) })
+        for (index, draft) in draftChecklistItems.enumerated() {
+            if let existing = existingByID[draft.id] {
+                existing.title = draft.title
+                existing.isCompleted = draft.isCompleted
+                existing.sortOrder = index
+            } else {
+                modelContext.insert(TaskChecklistItem(
+                    id: draft.id,
+                    title: draft.title,
+                    isCompleted: draft.isCompleted,
+                    sortOrder: index,
+                    taskID: task.id
+                ))
+            }
+        }
+
+        if onSave() {
+            dismiss()
+        }
     }
 }
 
