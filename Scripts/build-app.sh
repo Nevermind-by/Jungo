@@ -7,7 +7,6 @@ APP_PATH="${1:-$ROOT_DIR/dist/Jungo.app}"
 APP_VERSION="${JUNGO_VERSION:-0.1.0}"
 BUILD_NUMBER="${JUNGO_BUILD_NUMBER:-1}"
 EXECUTABLE="$ROOT_DIR/.build/release/$APP_NAME"
-CONTENTS="$APP_PATH/Contents"
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "Jungo .app packaging requires macOS." >&2
@@ -38,6 +37,7 @@ if [[ -e "$APP_PATH" ]]; then
     exit 2
   fi
 fi
+CONTENTS="$APP_PATH/Contents"
 
 if [[ ! "$APP_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   echo "JUNGO_VERSION must use MAJOR.MINOR.PATCH format (for example 1.0.0)." >&2
