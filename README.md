@@ -2,7 +2,7 @@
 
 **Нативный локальный Kanban для macOS 26 Tahoe и новее.**
 
-Jungo — персональная доска задач с нативным SwiftUI-интерфейсом и локальным хранением через SwiftData. Аккаунт, backend и интернет для основной работы не нужны.
+Jungo — персональная доска задач для собственного использования на Mac, с нативным SwiftUI-интерфейсом и локальным хранением через SwiftData. Аккаунт, backend и интернет для основной работы не нужны. GitHub используется для исходного кода и при необходимости для распространения сборки; Mac App Store и коммерческая дистрибуция не входят в текущий scope.
 
 ## Возможности
 
@@ -44,7 +44,7 @@ Jungo — персональная доска задач с нативным Swi
 
 ## Релизная сборка
 
-Для распространения вне Mac App Store необходимы Apple Developer account, сертификат Developer ID Application и сохранённый профиль notarytool. После настройки:
+Если понадобится делиться готовой сборкой с другими пользователями Mac, можно подготовить подписанный и notarized ZIP для публикации в GitHub Releases. Для этого необходимы Apple Developer account, сертификат Developer ID Application и сохранённый профиль notarytool. Для личного запуска можно использовать development-сборку. После настройки:
 
     security find-identity -v -p codesigning
     xcrun notarytool store-credentials "JungoNotary" --apple-id "APPLE_ID" --team-id "TEAM_ID" --password "APP_SPECIFIC_PASSWORD"
