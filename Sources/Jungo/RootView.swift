@@ -19,11 +19,14 @@ struct RootView: View {
     @State private var nameInput = ""
     @State private var selectedTask: TaskCard?
     @State private var taskPendingDeletionID: UUID?
+    @State private var taskPendingPermanentDeletionID: UUID?
     @State private var columnPendingDeletionID: UUID?
     @State private var showDeleteBoardConfirmation = false
     @State private var searchText = ""
     @State private var priorityFilter: PriorityFilter = .all
     @State private var showOverdueOnly = false
+    @State private var showTrash = false
+    @FocusState private var isSearchFocused: Bool
     @State private var errorMessage: String?
     @State private var statusMessage: String?
 
@@ -73,7 +76,19 @@ struct RootView: View {
             if let newValue { persistedSelectedBoardID = newValue.uuidString }
         }
         .onReceive(NotificationCenter.default.publisher(for: .jungoCreateTask)) { _ in
-            if let column = visibleColumns.first { createTask(in: column) }
+            guard !showTrash, let column = visibleColumns.first else { return }
+            createTask(in: column)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .jungoCreateBoard)) { _ in
+            editingBoardID = nil
+            nameInput = ""
+            isNamingBoard = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .jungoToggleTrash)) { _ in
+            showTrash.toggle()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .jungoFocusSearch)) { _ in
+            if !showTrash { isSearchFocused = true }
         }
         .sheet(item: $selectedTask) { task in TaskEditorSheet(task: task, onSave: saveChanges) }
         .confirmationDialog("Удалить доску и все её задачи?", isPresented: $showDeleteBoardConfirmation, titleVisibility: .visible) {
@@ -88,9 +103,13 @@ struct RootView: View {
         } message: {
             Text("Карточки будут перемещены в первую оставшуюся колонку этой доски. Последнюю колонку удалить нельзя.")
         }
-        .confirmationDialog("Удалить задачу?", isPresented: Binding(get: { taskPendingDeletionID != nil }, set: { if !$0 { taskPendingDeletionID = nil } }), titleVisibility: .visible) {
-            Button("Удалить задачу", role: .destructive) { deletePendingTask() }
+        .confirmationDialog("Переместить задачу в корзину?", isPresented: Binding(get: { taskPendingDeletionID != nil }, set: { if !$0 { taskPendingDeletionID = nil } }), titleVisibility: .visible) {
+            Button("В корзину", role: .destructive) { deletePendingTask() }
             Button("Отмена", role: .cancel) { taskPendingDeletionID = nil }
+        }
+        .confirmationDialog("Удалить задачу навсегда?", isPresented: Binding(get: { taskPendingPermanentDeletionID != nil }, set: { if !$0 { taskPendingPermanentDeletionID = nil } }), titleVisibility: .visible) {
+            Button("Удалить навсегда", role: .destructive) { permanentlyDeletePendingTask() }
+            Button("Отмена", role: .cancel) { taskPendingPermanentDeletionID = nil }
         }
         .alert("Jungo", isPresented: Binding(get: { errorMessage != nil || statusMessage != nil }, set: { if !$0 { errorMessage = nil; statusMessage = nil } })) {
             Button("ОК") { errorMessage = nil; statusMessage = nil }
@@ -151,33 +170,43 @@ struct RootView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center, spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(board.title).font(.largeTitle.weight(.bold))
-                    Text("\(visibleColumns.reduce(0) { $0 + tasks(in: $1).count }) задач")
+                    Text(showTrash ? "Корзина" : board.title).font(.largeTitle.weight(.bold))
+                    Text(showTrash ? "\(trashedTasks(for: board).count) в корзине" : "\(visibleColumns.reduce(0) { $0 + tasks(in: $1).count }) задач")
                         .foregroundStyle(.secondary).font(.subheadline)
                 }
                 Spacer()
-                HStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                    TextField("Поиск задач", text: $searchText).textFieldStyle(.plain).frame(width: 145)
+                if showTrash {
+                    Button("Вернуться к доске", systemImage: "arrow.uturn.backward") { showTrash = false }
+                        .buttonStyle(.bordered)
+                } else {
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                        TextField("Поиск задач", text: $searchText).textFieldStyle(.plain).frame(width: 145)
+                            .focused($isSearchFocused)
+                            .accessibilityLabel("Поиск задач")
+                    }
+                    .padding(.horizontal, 10).padding(.vertical, 8)
+                    .background(.quaternary, in: RoundedRectangle(cornerRadius: 9))
+                    Picker("Приоритет", selection: $priorityFilter) {
+                        ForEach(PriorityFilter.allCases) { filter in Text(filter.title).tag(filter) }
+                    }
+                    .labelsHidden().frame(width: 145)
+                    Toggle(isOn: $showOverdueOnly) {
+                        Image(systemName: "calendar.badge.exclamationmark")
+                    }
+                    .toggleStyle(.button).help("Только просроченные задачи")
+                    .accessibilityLabel("Только просроченные задачи")
+                    Button(action: { if let first = visibleColumns.first { createTask(in: first) } }) {
+                        Label("Новая задача", systemImage: "plus")
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
-                .padding(.horizontal, 10).padding(.vertical, 8)
-                .background(.quaternary, in: RoundedRectangle(cornerRadius: 9))
-                Picker("Приоритет", selection: $priorityFilter) {
-                    ForEach(PriorityFilter.allCases) { filter in Text(filter.title).tag(filter) }
-                }
-                .labelsHidden().frame(width: 145)
-                Toggle(isOn: $showOverdueOnly) {
-                    Image(systemName: "calendar.badge.exclamationmark")
-                }
-                .toggleStyle(.button).help("Только просроченные задачи")
-                Button(action: { if let first = visibleColumns.first { createTask(in: first) } }) {
-                    Label("Новая задача", systemImage: "plus")
-                }
-                .keyboardShortcut("n", modifiers: .command).buttonStyle(.borderedProminent)
             }
             .padding(22)
             Divider()
-            if visibleColumns.isEmpty {
+            if showTrash {
+                trashWorkspace(for: board)
+            } else if visibleColumns.isEmpty {
                 ContentUnavailableView("Пока нет колонок", systemImage: "rectangle.split.3x1")
             } else {
                 ScrollView(.horizontal) {
@@ -194,8 +223,13 @@ struct RootView: View {
         .toolbar {
             ToolbarItemGroup {
                 Menu {
-                    Button("Добавить колонку", action: beginAddColumn)
+                    Button(showTrash ? "Вернуться к доске" : "Открыть корзину (\(trashedTasks(for: board).count))", systemImage: showTrash ? "arrow.uturn.backward" : "trash") {
+                        showTrash.toggle()
+                    }
                     Divider()
+                    if !showTrash {
+                        Button("Добавить колонку", action: beginAddColumn)
+                    }
                     Button("Экспортировать данные…", action: exportArchive)
                     Button("Импортировать данные…", action: importArchive)
                     Divider()
@@ -292,7 +326,7 @@ struct RootView: View {
 
     private func tasks(in column: BoardColumn) -> [TaskCard] {
         allTasks.filter { task in
-            guard task.columnID == column.id else { return false }
+            guard task.columnID == column.id, !task.isInTrash else { return false }
             let matchesSearch = searchText.isEmpty ||
                 task.title.localizedCaseInsensitiveContains(searchText) ||
                 task.details.localizedCaseInsensitiveContains(searchText)
@@ -310,13 +344,13 @@ struct RootView: View {
     }
 
     private func moveTask(_ taskID: UUID, to destination: BoardColumn, before targetID: UUID?) {
-        guard let task = allTasks.first(where: { $0.id == taskID }), task.id != targetID,
+        guard let task = allTasks.first(where: { $0.id == taskID }), !task.isInTrash, task.id != targetID,
               let destinationBoard = boards.first(where: { $0.id == destination.boardID }),
               destinationBoard.id == selectedBoard?.id else { return }
 
         let sourceColumnID = task.columnID
-        var sourceTasks = allTasks.filter { $0.columnID == sourceColumnID && $0.id != taskID }.sorted { $0.sortOrder < $1.sortOrder }
-        var destinationTasks = allTasks.filter { $0.columnID == destination.id && $0.id != taskID }.sorted { $0.sortOrder < $1.sortOrder }
+        var sourceTasks = allTasks.filter { $0.columnID == sourceColumnID && $0.id != taskID && !$0.isInTrash }.sorted { $0.sortOrder < $1.sortOrder }
+        var destinationTasks = allTasks.filter { $0.columnID == destination.id && $0.id != taskID && !$0.isInTrash }.sorted { $0.sortOrder < $1.sortOrder }
         let insertion: Int
         if let targetID, let targetIndex = destinationTasks.firstIndex(where: { $0.id == targetID }) {
             insertion = targetIndex
@@ -384,12 +418,76 @@ struct RootView: View {
     private func deletePendingTask() {
         defer { taskPendingDeletionID = nil }
         guard let id = taskPendingDeletionID, let task = allTasks.first(where: { $0.id == id }) else { return }
-        let columnID = task.columnID
-        for item in allChecklistItems where item.taskID == id { modelContext.delete(item) }
-        modelContext.delete(task)
-        let remaining = allTasks.filter { $0.columnID == columnID && $0.id != id }.sorted { $0.sortOrder < $1.sortOrder }
+        task.isInTrash = true
+        let remaining = allTasks.filter { $0.columnID == task.columnID && $0.id != id && !$0.isInTrash }.sorted { $0.sortOrder < $1.sortOrder }
         for (index, item) in remaining.enumerated() { item.sortOrder = index }
         _ = saveChanges()
+    }
+
+    private func trashedTasks(for board: Board) -> [TaskCard] {
+        let columnIDs = Set(allColumns.filter { $0.boardID == board.id }.map(\.id))
+        return allTasks.filter { $0.isInTrash && columnIDs.contains($0.columnID) }
+            .sorted { $0.createdAt > $1.createdAt }
+    }
+
+    private func restoreTask(_ task: TaskCard) {
+        task.isInTrash = false
+        let existing = allTasks.filter { $0.columnID == task.columnID && $0.id != task.id && !$0.isInTrash }
+        task.sortOrder = existing.count
+        if saveChanges() {
+            statusMessage = "Задача восстановлена."
+        }
+    }
+
+    private func permanentlyDeletePendingTask() {
+        defer { taskPendingPermanentDeletionID = nil }
+        guard let id = taskPendingPermanentDeletionID,
+              let task = allTasks.first(where: { $0.id == id }),
+              task.isInTrash else { return }
+        for item in allChecklistItems where item.taskID == id { modelContext.delete(item) }
+        modelContext.delete(task)
+        if saveChanges() {
+            statusMessage = "Задача удалена навсегда."
+        }
+    }
+
+    private func trashWorkspace(for board: Board) -> some View {
+        let tasks = trashedTasks(for: board)
+        return Group {
+            if tasks.isEmpty {
+                ContentUnavailableView("Корзина пуста", systemImage: "trash", description: Text("Удалённые задачи можно будет восстановить здесь."))
+            } else {
+                List {
+                    ForEach(tasks) { task in
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(task.title).font(.headline)
+                                if !task.details.isEmpty {
+                                    Text(task.details).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                                }
+                                Text("Доска: \(board.title) · Удалена в корзину")
+                                    .font(.caption2).foregroundStyle(.tertiary)
+                            }
+                            Spacer()
+                            Button("Восстановить", systemImage: "arrow.uturn.backward") {
+                                restoreTask(task)
+                            }
+                            .buttonStyle(.bordered)
+                            Button(role: .destructive) {
+                                taskPendingPermanentDeletionID = task.id
+                            } label: {
+                                Image(systemName: "trash.slash")
+                            }
+                            .buttonStyle(.borderless)
+                            .help("Удалить навсегда")
+                            .accessibilityLabel("Удалить задачу навсегда: \(task.title)")
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+                .listStyle(.inset)
+            }
+        }
     }
 
     private func saveBoardName() {

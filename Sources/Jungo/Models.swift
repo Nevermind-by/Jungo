@@ -43,6 +43,7 @@ final class TaskCard {
     var columnID: UUID
     var createdAt: Date
     var dueDate: Date?
+    var isInTrash: Bool = false
 
     var labels: [String] { TaskLabels.parse(labelsText) }
 
@@ -60,7 +61,8 @@ final class TaskCard {
         sortOrder: Int = 0,
         columnID: UUID,
         createdAt: Date = .now,
-        dueDate: Date? = nil
+        dueDate: Date? = nil,
+        isInTrash: Bool = false
     ) {
         self.id = id
         self.title = title
@@ -71,6 +73,7 @@ final class TaskCard {
         self.columnID = columnID
         self.createdAt = createdAt
         self.dueDate = dueDate
+        self.isInTrash = isInTrash
     }
 }
 

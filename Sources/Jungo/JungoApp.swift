@@ -16,10 +16,27 @@ struct JungoApp: App {
                 }
                 .keyboardShortcut("n", modifiers: [.command])
             }
+            CommandGroup(after: .newItem) {
+                Button("Новая доска") {
+                    NotificationCenter.default.post(name: .jungoCreateBoard, object: nil)
+                }
+                .keyboardShortcut("n", modifiers: [.command, .shift])
+                Button("Поиск задач") {
+                    NotificationCenter.default.post(name: .jungoFocusSearch, object: nil)
+                }
+                .keyboardShortcut("f", modifiers: [.command])
+                Button("Корзина") {
+                    NotificationCenter.default.post(name: .jungoToggleTrash, object: nil)
+                }
+                .keyboardShortcut("t", modifiers: [.command, .shift])
+            }
         }
     }
 }
 
 extension Notification.Name {
     static let jungoCreateTask = Notification.Name("jungo.createTask")
+    static let jungoCreateBoard = Notification.Name("jungo.createBoard")
+    static let jungoFocusSearch = Notification.Name("jungo.focusSearch")
+    static let jungoToggleTrash = Notification.Name("jungo.toggleTrash")
 }

@@ -20,8 +20,9 @@ if [[ ! -x "$EXECUTABLE" ]]; then
 fi
 
 rm -rf "$APP_PATH"
-mkdir -p "$CONTENTS/MacOS"
+mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Resources"
 cp "$EXECUTABLE" "$CONTENTS/MacOS/$APP_NAME"
+swift "$ROOT_DIR/Scripts/generate-icon.swift" "$CONTENTS/Resources/AppIcon.icns"
 chmod 755 "$CONTENTS/MacOS/$APP_NAME"
 
 cat > "$CONTENTS/Info.plist" <<'PLIST'
@@ -39,6 +40,10 @@ cat > "$CONTENTS/Info.plist" <<'PLIST'
     <string>6.0</string>
     <key>CFBundleName</key>
     <string>Jungo</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>NSHumanReadableCopyright</key>
+    <string>Copyright © 2026 Jungo</string>
     <key>CFBundleDisplayName</key>
     <string>Jungo</string>
     <key>CFBundlePackageType</key>
