@@ -679,11 +679,11 @@ struct RootView: View {
                         .contentShape(RoundedRectangle(cornerRadius: 10))
                         .background(
                             RoundedRectangle(cornerRadius: 10)
-                                .fill(.quaternary.opacity(0.45))
+                                .fill(Color.secondary.opacity(0.08))
                         )
                 }
                 .buttonStyle(.plain)
-                .help("Создать задачу в колонке «\\(column.title)»")
+                .help("Создать задачу в колонке «\(column.title)»")
                 .accessibilityHint("Создаёт задачу непосредственно в этой колонке.")
             }
             Spacer(minLength: 0)
