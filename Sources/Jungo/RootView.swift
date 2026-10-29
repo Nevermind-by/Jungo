@@ -566,6 +566,9 @@ struct RootView: View {
                     }
                     .contextMenu {
                         Button("Редактировать") { selectedTask = task }
+                        Button("Дублировать задачу", systemImage: "plus.square.on.square") {
+                            duplicateTask(task)
+                        }
                         Menu("Переместить в") {
                             ForEach(visibleColumns.filter { $0.id != column.id }) { destination in
                                 Button(destination.title) { moveTask(task.id, to: destination, before: nil) }
@@ -614,6 +617,50 @@ struct RootView: View {
         modelContext.insert(task)
         guard saveChanges() else { return }
         selectedTask = task
+    }
+
+    private func duplicateTask(_ source: TaskCard) {
+        guard !source.isInTrash,
+              let column = allColumns.first(where: { $0.id == source.columnID }),
+              column.boardID == selectedBoard?.id else { return }
+
+        let columnTasks = allTasks
+            .filter { $0.columnID == source.columnID && !$0.isInTrash }
+            .sorted { $0.sortOrder < $1.sortOrder }
+        guard let sourceIndex = columnTasks.firstIndex(where: { $0.id == source.id }) else { return }
+
+        let duplicate = TaskCard(
+            title: "Копия: \(source.title)",
+            details: source.details,
+            labelsText: source.labelsText,
+            priority: source.priority,
+            sortOrder: source.sortOrder + 1,
+            columnID: source.columnID,
+            dueDate: source.dueDate
+        )
+        modelContext.insert(duplicate)
+
+        var reorderedTasks = columnTasks
+        reorderedTasks.insert(duplicate, at: sourceIndex + 1)
+        for (index, task) in reorderedTasks.enumerated() {
+            task.sortOrder = index
+        }
+
+        let sourceChecklist = allChecklistItems
+            .filter { $0.taskID == source.id }
+            .sorted { $0.sortOrder < $1.sortOrder }
+        for item in sourceChecklist {
+            modelContext.insert(TaskChecklistItem(
+                title: item.title,
+                isCompleted: false,
+                sortOrder: item.sortOrder,
+                taskID: duplicate.id
+            ))
+        }
+
+        guard saveChanges() else { return }
+        selectedTask = duplicate
+        statusMessage = "Создана копия задачи «\(source.title)»."
     }
 
     private func createQuickTask(title: String, details: String, columnID: UUID) -> Bool {
