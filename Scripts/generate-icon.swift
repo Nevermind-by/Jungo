@@ -6,6 +6,10 @@ let fileManager = FileManager.default
 let outputURL = URL(fileURLWithPath: outputPath)
 let iconsetURL = outputURL.deletingLastPathComponent().appendingPathComponent("Jungo.iconset", isDirectory: true)
 
+// The requested output can live inside a not-yet-created app bundle.
+// Ensure the parent exists before writing any iconset PNG files.
+try fileManager.createDirectory(at: outputURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+
 func drawIcon(size: Int) throws -> Data {
     guard let bitmap = NSBitmapImageRep(
         bitmapDataPlanes: nil,
