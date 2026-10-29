@@ -88,7 +88,7 @@ extension JungoArchiveDocument {
                 }
                 let newID = UUID()
                 taskIDMap[record.id] = newID
-                importContext.insert(TaskCard(
+                let importedTask = TaskCard(
                     id: newID,
                     title: record.title,
                     details: record.details,
@@ -99,7 +99,12 @@ extension JungoArchiveDocument {
                     createdAt: record.createdAt,
                     dueDate: record.dueDate,
                     isInTrash: record.isInTrash ?? false
-                ))
+                )
+                // Keep unknown raw values intact for forward compatibility. The
+                // computed enum can display an unknown value as .normal, but an
+                // import/export cycle must not silently rewrite the stored value.
+                importedTask.priorityRawValue = record.priorityRawValue
+                importContext.insert(importedTask)
             }
 
             for record in checklistItems ?? [] {
