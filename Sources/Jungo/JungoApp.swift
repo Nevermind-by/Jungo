@@ -4,16 +4,33 @@ import AppKit
 
 @main
 struct JungoApp: App {
+    private let modelContainer: ModelContainer?
+    private let startupError: String?
+
     init() {
         GlobalHotKeyManager.shared.start()
+        do {
+            let container = try VaultStore.makeContainer()
+            modelContainer = container
+            startupError = nil
+        } catch {
+            modelContainer = nil
+            startupError = error.localizedDescription
+        }
     }
 
     var body: some Scene {
         WindowGroup("Jungo", id: "main") {
-            RootView()
-                .frame(minWidth: 860, minHeight: 560)
+            Group {
+                if let modelContainer {
+                    RootView()
+                        .frame(minWidth: 860, minHeight: 560)
+                        .modelContainer(modelContainer)
+                } else {
+                    VaultUnavailableView(message: startupError ?? "Неизвестная ошибка хранилища.")
+                }
+            }
         }
-        .modelContainer(for: [Board.self, BoardColumn.self, TaskCard.self, TaskChecklistItem.self], isUndoEnabled: true)
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("Новая задача") {
@@ -38,6 +55,17 @@ struct JungoApp: App {
                     NotificationCenter.default.post(name: .jungoToggleTrash, object: nil)
                 }
                 .keyboardShortcut("t", modifiers: [.command, .shift])
+            }
+        }
+
+        Settings {
+            Group {
+                if let modelContainer {
+                    VaultSettingsView()
+                        .modelContainer(modelContainer)
+                } else {
+                    VaultUnavailableView(message: startupError ?? "Неизвестная ошибка хранилища.")
+                }
             }
         }
 
