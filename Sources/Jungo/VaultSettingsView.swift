@@ -135,6 +135,20 @@ struct VaultUnavailableView: View {
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: 480)
+            if UserDefaults.standard.data(forKey: VaultStore.bookmarkDefaultsKey) != nil {
+                VStack(spacing: 5) {
+                    Text("Ожидаемое расположение")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                    Text(VaultStore.currentFolderURL.path)
+                        .font(.callout.monospaced())
+                        .textSelection(.enabled)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: 520)
+                .padding(12)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            }
             Text("Подключи диск или верни доступ к выбранной папке, затем заверши и снова открой Jungo. Приложение намеренно не создаёт пустую базу вместо недоступного хранилища.")
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 480)
