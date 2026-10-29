@@ -1129,14 +1129,22 @@ private struct TaskCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(task.title).font(.system(size: 14, weight: .medium)).foregroundStyle(.primary)
+            Text(task.title)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
             if !task.details.isEmpty {
                 Text(task.details).font(.caption).foregroundStyle(.secondary).lineLimit(3)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             if !task.labels.isEmpty {
-                HStack(spacing: 5) {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 54), alignment: .leading)],
+                    alignment: .leading,
+                    spacing: 5
+                ) {
                     ForEach(task.labels, id: \.self) { label in
                         TaskLabelPill(label: label)
                     }
@@ -1209,21 +1217,28 @@ private struct TaskEditorSheet: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text("Задача").font(.title2.bold())
-            TextField("Название", text: $draftTitle).textFieldStyle(.roundedBorder).font(.title3)
-            TextField("Метки через запятую", text: $draftLabelsText).textFieldStyle(.roundedBorder)
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text("Описание").font(.subheadline.weight(.medium))
-                    Spacer()
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Редактирование задачи")
+                .font(.title2.bold())
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+            TextField("Название задачи", text: $draftTitle)
+                .textFieldStyle(.roundedBorder)
+                .font(.title3)
+            TextField("Метки через запятую", text: $draftLabelsText)
+                .textFieldStyle(.roundedBorder)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .center, spacing: 12) {
+                    Text("Описание")
+                        .font(.subheadline.weight(.semibold))
+                    Spacer(minLength: 8)
                     Picker("Режим описания", selection: $showDescriptionPreview) {
-                        Text("Редактировать").tag(false)
-                        Text("Просмотр Markdown").tag(true)
+                        Text("Правка").tag(false)
+                        Text("Предпросмотр").tag(true)
                     }
                     .labelsHidden()
                     .pickerStyle(.segmented)
-                    .frame(width: 210)
+                    .frame(width: 224)
                 }
                 if showDescriptionPreview {
                     ScrollView {
@@ -1237,11 +1252,15 @@ private struct TaskEditorSheet: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(8)
                     }
-                    .frame(minHeight: 120)
-                    .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 8))
+                    .frame(minHeight: 150)
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 10))
                 } else {
-                    TextEditor(text: $draftDetails).frame(minHeight: 120).padding(4)
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(.quaternary))
+                    TextEditor(text: $draftDetails)
+                        .frame(minHeight: 150)
+                        .padding(6)
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(.quaternary))
                 }
             }
             Picker("Приоритет", selection: $draftPriority) {
@@ -1290,8 +1309,9 @@ private struct TaskEditorSheet: View {
                     .keyboardShortcut(.defaultAction).buttonStyle(.borderedProminent)
             }
         }
-        .padding(26)
-        .frame(width: 480)
+        .padding(24)
+        .frame(width: 560)
+        .frame(minHeight: 560)
         .background(JungoCanvasBackground())
         .onAppear {
             draftTitle = task.title
@@ -1362,8 +1382,11 @@ private struct TaskLabelPill: View {
     var body: some View {
         Text(label)
             .font(.caption2.weight(.medium))
+            .lineLimit(1)
+            .truncationMode(.tail)
             .padding(.horizontal, 7)
             .padding(.vertical, 3)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .foregroundStyle(tint)
             .background(tint.opacity(0.13), in: Capsule())
             .accessibilityLabel("Метка: \(label)")
