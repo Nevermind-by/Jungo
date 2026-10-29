@@ -8,7 +8,7 @@ struct JungoApp: App {
             RootView()
                 .frame(minWidth: 860, minHeight: 560)
         }
-        .modelContainer(for: [Board.self, BoardColumn.self, TaskCard.self, TaskChecklistItem.self])
+        .modelContainer(for: [Board.self, BoardColumn.self, TaskCard.self, TaskChecklistItem.self], isUndoEnabled: true)
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("Новая задача") {
