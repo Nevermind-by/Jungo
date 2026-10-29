@@ -254,6 +254,9 @@ struct RootView: View {
                                 nameInput = board.title
                                 isNamingBoard = true
                             }
+                            Button("Дублировать доску", systemImage: "plus.square.on.square") {
+                                duplicateBoard(board)
+                            }
                             Button("В архив", systemImage: "archivebox") {
                                 archiveBoard(board)
                             }
@@ -273,6 +276,9 @@ struct RootView: View {
                             .contextMenu {
                                 Button("Восстановить из архива", systemImage: "arrow.uturn.backward") {
                                     restoreBoardFromArchive(board)
+                                }
+                                Button("Дублировать доску", systemImage: "plus.square.on.square") {
+                                    duplicateBoard(board)
                                 }
                                 Button("Переименовать") {
                                     editingBoardID = board.id
@@ -460,6 +466,9 @@ struct RootView: View {
                     Divider()
                     if !showTrash {
                         Button("Добавить колонку", action: beginAddColumn)
+                        Button("Дублировать доску", systemImage: "plus.square.on.square") {
+                            duplicateBoard(board)
+                        }
                         if board.isArchived {
                             Button("Восстановить доску из архива", systemImage: "arrow.uturn.backward") {
                                 restoreBoardFromArchive(board)
@@ -634,6 +643,70 @@ struct RootView: View {
         modelContext.insert(task)
         guard saveChanges() else { return }
         selectedTask = task
+    }
+
+    private func duplicateBoard(_ source: Board) {
+        let sourceColumns = allColumns
+            .filter { $0.boardID == source.id }
+            .sorted { $0.sortOrder < $1.sortOrder }
+        let sourceColumnIDs = Set(sourceColumns.map(\.id))
+        let sourceTasks = allTasks
+            .filter { sourceColumnIDs.contains($0.columnID) && !$0.isInTrash }
+            .sorted { lhs, rhs in
+                guard lhs.columnID == rhs.columnID else {
+                    let leftOrder = sourceColumns.first(where: { $0.id == lhs.columnID })?.sortOrder ?? 0
+                    let rightOrder = sourceColumns.first(where: { $0.id == rhs.columnID })?.sortOrder ?? 0
+                    return leftOrder < rightOrder
+                }
+                return lhs.sortOrder < rhs.sortOrder
+            }
+
+        let nextBoardOrder = (boards.map(\.sortOrder).max() ?? -1) + 1
+        let duplicate = Board(title: "Копия: \(source.title)", sortOrder: nextBoardOrder)
+        modelContext.insert(duplicate)
+
+        var columnIDMap: [UUID: UUID] = [:]
+        for column in sourceColumns {
+            let copy = BoardColumn(title: column.title, sortOrder: column.sortOrder, boardID: duplicate.id)
+            modelContext.insert(copy)
+            columnIDMap[column.id] = copy.id
+        }
+
+        var taskIDMap: [UUID: UUID] = [:]
+        for task in sourceTasks {
+            guard let newColumnID = columnIDMap[task.columnID] else { continue }
+            let copy = TaskCard(
+                title: task.title,
+                details: task.details,
+                labelsText: task.labelsText,
+                priority: task.priority,
+                sortOrder: task.sortOrder,
+                columnID: newColumnID,
+                dueDate: task.dueDate
+            )
+            modelContext.insert(copy)
+            taskIDMap[task.id] = copy.id
+        }
+
+        let sourceChecklist = allChecklistItems
+            .filter { taskIDMap[$0.taskID] != nil }
+            .sorted { $0.sortOrder < $1.sortOrder }
+        for item in sourceChecklist {
+            guard let newTaskID = taskIDMap[item.taskID] else { continue }
+            modelContext.insert(TaskChecklistItem(
+                title: item.title,
+                isCompleted: false,
+                sortOrder: item.sortOrder,
+                taskID: newTaskID
+            ))
+        }
+
+        guard saveChanges() else { return }
+        selectedBoardID = duplicate.id
+        selectedTask = nil
+        showTrash = false
+        clearFilters()
+        statusMessage = "Создана копия доски «\(source.title)»."
     }
 
     private func duplicateTask(_ source: TaskCard) {
