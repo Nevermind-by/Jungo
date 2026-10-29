@@ -39,7 +39,8 @@ extension JungoArchiveDocument {
 
     /// Imports additional boards in an isolated context so a failed import cannot
     /// roll back unrelated edits in the UI context or leave a partial import there.
-    func importInto(_ context: ModelContext) throws {
+    @discardableResult
+    func importInto(_ context: ModelContext) throws -> UUID? {
         try validate()
 
         let importContext = ModelContext(context.container)
@@ -53,8 +54,10 @@ extension JungoArchiveDocument {
             let existingBoards = try importContext.fetch(FetchDescriptor<Board>())
             let nextBoardSortOrder = (existingBoards.map { $0.sortOrder }.max() ?? -1) + 1
 
+            var lastImportedBoardID: UUID?
             for (offset, record) in boards.sorted(by: { $0.sortOrder < $1.sortOrder }).enumerated() {
                 let newID = UUID()
+                lastImportedBoardID = newID
                 boardIDMap[record.id] = newID
                 importContext.insert(Board(
                     id: newID,
@@ -113,6 +116,7 @@ extension JungoArchiveDocument {
             }
 
             try importContext.save()
+            return lastImportedBoardID
         } catch {
             importContext.rollback()
             throw error
