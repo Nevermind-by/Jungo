@@ -28,6 +28,10 @@ struct RootView: View {
     @State private var priorityFilter: PriorityFilter = .all
     @State private var selectedLabel = ""
     @State private var showOverdueOnly = false
+    @AppStorage("jungo.savedTaskFiltersJSON") private var savedTaskFiltersJSON = "[]"
+    @State private var showSaveTaskFilter = false
+    @State private var showManageSavedFilters = false
+    @State private var showLabelColorSettings = false
     @State private var showTrash = false
     @FocusState private var isSearchFocused: Bool
     @State private var errorMessage: String?
@@ -81,6 +85,65 @@ struct RootView: View {
         return Array(Set(labels)).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }
 
+    private var savedTaskFilters: [SavedTaskFilter] {
+        guard let data = savedTaskFiltersJSON.data(using: .utf8),
+              let filters = try? JSONDecoder().decode([SavedTaskFilter].self, from: data) else {
+            return []
+        }
+        return filters.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    private var hasActiveFilters: Bool {
+        !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || priorityFilter != .all
+            || !selectedLabel.isEmpty
+            || showOverdueOnly
+    }
+
+    private func applySavedFilter(_ filter: SavedTaskFilter) {
+        searchText = filter.searchText
+        priorityFilter = PriorityFilter(rawValue: filter.priorityRawValue) ?? .all
+        selectedLabel = filter.label
+        showOverdueOnly = filter.showOverdueOnly
+        showTrash = false
+    }
+
+    private func saveTaskFilter(named name: String) {
+        let normalizedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedName.isEmpty else { return }
+        var filters = savedTaskFilters
+        filters.removeAll { $0.name.localizedCaseInsensitiveCompare(normalizedName) == .orderedSame }
+        filters.append(SavedTaskFilter(
+            id: UUID(),
+            name: normalizedName,
+            searchText: searchText,
+            priorityRawValue: priorityFilter.rawValue,
+            label: selectedLabel,
+            showOverdueOnly: showOverdueOnly
+        ))
+        guard let data = try? JSONEncoder().encode(filters),
+              let json = String(data: data, encoding: .utf8) else {
+            errorMessage = "Не удалось сохранить фильтр."
+            return
+        }
+        savedTaskFiltersJSON = json
+        statusMessage = "Фильтр «\\(normalizedName)» сохранён."
+    }
+
+    private func deleteSavedFilter(_ filter: SavedTaskFilter) {
+        let filters = savedTaskFilters.filter { $0.id != filter.id }
+        guard let data = try? JSONEncoder().encode(filters),
+              let json = String(data: data, encoding: .utf8) else { return }
+        savedTaskFiltersJSON = json
+    }
+
+    private func clearFilters() {
+        searchText = ""
+        priorityFilter = .all
+        selectedLabel = ""
+        showOverdueOnly = false
+    }
+
     var body: some View {
         NavigationSplitView {
             sidebar
@@ -126,6 +189,19 @@ struct RootView: View {
             if !showTrash { isSearchFocused = true }
         }
         .sheet(item: $selectedTask) { task in TaskEditorSheet(task: task, onSave: saveChanges) }
+        .sheet(isPresented: $showSaveTaskFilter) {
+            SaveTaskFilterSheet { name in saveTaskFilter(named: name) }
+        }
+        .sheet(isPresented: $showManageSavedFilters) {
+            ManageSavedFiltersSheet(
+                filters: savedTaskFilters,
+                onSelect: applySavedFilter,
+                onDelete: deleteSavedFilter
+            )
+        }
+        .sheet(isPresented: $showLabelColorSettings) {
+            LabelColorSettingsSheet(labels: availableLabels)
+        }
         .confirmationDialog("Удалить доску и все её задачи?", isPresented: $showDeleteBoardConfirmation, titleVisibility: .visible) {
             Button("Удалить доску", role: .destructive, action: deleteSelectedBoard)
             Button("Отмена", role: .cancel) {}
@@ -305,6 +381,30 @@ struct RootView: View {
                         }
                         .disabled(visibleColumns.isEmpty)
                         Menu {
+                            if savedTaskFilters.isEmpty {
+                                Text("Нет сохранённых фильтров")
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                ForEach(savedTaskFilters) { filter in
+                                    Button {
+                                        applySavedFilter(filter)
+                                    } label: {
+                                        Label(filter.name, systemImage: "line.3.horizontal.decrease.circle")
+                                    }
+                                }
+                                Divider()
+                                Button("Управление фильтрами…", systemImage: "slider.horizontal.3") {
+                                    showManageSavedFilters = true
+                                }
+                            }
+                            Button("Сохранить текущий фильтр…", systemImage: "bookmark") {
+                                showSaveTaskFilter = true
+                            }
+                            .disabled(!hasActiveFilters)
+                        } label: {
+                            Label("Сохранённые фильтры", systemImage: "bookmark")
+                        }
+                        Menu {
                             Button {
                                 selectedLabel = ""
                             } label: {
@@ -321,10 +421,19 @@ struct RootView: View {
                                     }
                                 }
                             }
+                            Divider()
+                            Button("Настроить цвета меток…", systemImage: "paintpalette") {
+                                showLabelColorSettings = true
+                            }
                         } label: {
                             Label(selectedLabel.isEmpty ? "Фильтр по метке" : selectedLabel, systemImage: "tag")
                         }
                         .disabled(availableLabels.isEmpty)
+                        if hasActiveFilters {
+                            Button("Сбросить фильтры", systemImage: "xmark.circle") {
+                                clearFilters()
+                            }
+                        }
                     }
                     Divider()
                     if !showTrash {
@@ -928,11 +1037,10 @@ private struct ChecklistItemRow: View {
 
 private struct TaskLabelPill: View {
     let label: String
+    @AppStorage("jungo.labelColorsJSON") private var labelColorsJSON = "{}"
 
     private var tint: Color {
-        let hash = label.unicodeScalars.reduce(0) { ($0 * 31 + Int($1.value)) % 997 }
-        let palette: [Color] = [.blue, .purple, .green, .orange, .pink, .teal, .indigo]
-        return palette[hash % palette.count]
+        TaskLabelPalette.color(for: label, storedJSON: labelColorsJSON)
     }
 
     var body: some View {
