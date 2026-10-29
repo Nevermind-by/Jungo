@@ -120,6 +120,7 @@ struct VaultSettingsView: View {
 
 struct VaultUnavailableView: View {
     let message: String
+    @State private var recoveryError: String?
 
     var body: some View {
         VStack(spacing: 16) {
@@ -135,6 +136,9 @@ struct VaultUnavailableView: View {
             Text("Подключи диск или верни доступ к выбранной папке, затем заверши и снова открой Jungo. Приложение намеренно не создаёт пустую базу вместо недоступного хранилища.")
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 480)
+            Button("Указать папку существующего хранилища…", systemImage: "folder.badge.questionmark") {
+                recoverExistingVault()
+            }
             Button("Завершить Jungo") {
                 NSApp.terminate(nil)
             }
@@ -142,5 +146,31 @@ struct VaultUnavailableView: View {
         }
         .padding(36)
         .frame(minWidth: 620, minHeight: 360)
+        .alert("Не удалось восстановить доступ", isPresented: Binding(
+            get: { recoveryError != nil },
+            set: { if !$0 { recoveryError = nil } }
+        )) {
+            Button("ОК", role: .cancel) { recoveryError = nil }
+        } message: {
+            Text(recoveryError ?? "")
+        }
+    }
+
+    private func recoverExistingVault() {
+        let panel = NSOpenPanel()
+        panel.title = "Найди папку с существующим Jungo.store"
+        panel.message = "Будет принят только уже существующий файл Jungo.store. Новая пустая база не создаётся."
+        panel.prompt = "Выбрать папку"
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+
+        guard panel.runModal() == .OK, let folder = panel.url else { return }
+        do {
+            try VaultStore.restoreAccess(to: folder)
+            NSApp.terminate(nil)
+        } catch {
+            recoveryError = error.localizedDescription
+        }
     }
 }
