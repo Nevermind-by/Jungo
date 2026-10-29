@@ -4,7 +4,8 @@
 
 - macOS 26 Tahoe или новее.
 - Xcode Command Line Tools и Swift 6 toolchain.
-- Для notarized-релиза: Apple Developer account, Developer ID Application certificate и notarytool keychain profile.
+- Для личного использования достаточно локальной development-сборки.
+- Только если понадобится делиться готовым приложением через GitHub Releases: Apple Developer account, Developer ID Application certificate и notarytool keychain profile.
 
 ## Локальные команды
 
@@ -18,6 +19,10 @@ Scripts/build-app.sh генерирует иконку, собирает release
 Пример сборки с другой версией:
 
     JUNGO_VERSION="1.0.0" JUNGO_BUILD_NUMBER="12" Scripts/build-app.sh
+
+## Необязательная подпись для публикации в GitHub Releases
+
+Этот раздел не нужен для повседневного личного использования. Подписанная и notarized-сборка имеет смысл только если Jungo будет распространяться за пределами собственного Mac. Mac App Store не является целью проекта.
 
 ## Настройка релизной подписи
 
@@ -72,7 +77,8 @@ Scripts/build-app.sh генерирует иконку, собирает release
 - [ ] Повреждённый JSON вызывает понятную ошибку.
 - [ ] Проверка светлой/тёмной темы и VoiceOver.
 - [ ] Запуск через dist/Jungo.app; иконка отображается в Finder и Dock.
-- [ ] Подписанная/notarized сборка открывается на чистом Mac.
+- [ ] Локальная development-сборка открывается и корректно сохраняет данные на целевом Mac.
+- [ ] Только если планируется публикация готовой сборки для других пользователей: подписанная/notarized сборка открывается на чистом Mac.
 
 ## Принцип
 
