@@ -53,13 +53,13 @@ extension JungoArchiveDocument {
             let existingBoards = try importContext.fetch(FetchDescriptor<Board>())
             let nextBoardSortOrder = (existingBoards.map { $0.sortOrder }.max() ?? -1) + 1
 
-            for record in boards.sorted(by: { $0.sortOrder < $1.sortOrder }) {
+            for (offset, record) in boards.sorted(by: { $0.sortOrder < $1.sortOrder }).enumerated() {
                 let newID = UUID()
                 boardIDMap[record.id] = newID
                 importContext.insert(Board(
                     id: newID,
                     title: record.title,
-                    sortOrder: nextBoardSortOrder + record.sortOrder,
+                    sortOrder: nextBoardSortOrder + offset,
                     createdAt: record.createdAt,
                     isArchived: record.isArchived ?? false
                 ))
