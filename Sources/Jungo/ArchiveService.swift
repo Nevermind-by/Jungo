@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import JungoCore
 
 struct JungoArchive: Codable {
     var formatVersion: Int
