@@ -1036,7 +1036,6 @@ struct RootView: View {
             }
             statusMessage = "Импортировано досок: \(archive.boards.count). Существующие данные не заменялись."
         } catch {
-            modelContext.rollback()
             errorMessage = "Не удалось импортировать архив: \(error.localizedDescription)"
         }
     }
