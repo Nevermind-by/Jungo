@@ -199,7 +199,7 @@ struct RootView: View {
                     Button(action: { if let first = visibleColumns.first { createTask(in: first) } }) {
                         Label("Новая задача", systemImage: "plus")
                     }
-                    .keyboardShortcut("n", modifiers: .command).buttonStyle(.borderedProminent)
+                    .buttonStyle(.borderedProminent)
                 }
             }
             .padding(22)
