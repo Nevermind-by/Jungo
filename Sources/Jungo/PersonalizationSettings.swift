@@ -10,12 +10,12 @@ struct SavedTaskFilter: Codable, Identifiable, Equatable {
 
     var summary: String {
         var parts: [String] = []
-        if !searchText.isEmpty { parts.append("Поиск: \\(searchText)") }
+        if !searchText.isEmpty { parts.append("Поиск: \(searchText)") }
         if priorityRawValue != "all" {
             let title = ["low": "Низкий", "normal": "Обычный", "high": "Высокий"][priorityRawValue] ?? priorityRawValue
-            parts.append("Приоритет: \\(title)")
+            parts.append("Приоритет: \(title)")
         }
-        if !label.isEmpty { parts.append("Метка: \\(label)") }
+        if !label.isEmpty { parts.append("Метка: \(label)") }
         if showOverdueOnly { parts.append("Просроченные") }
         return parts.isEmpty ? "Без фильтров" : parts.joined(separator: " · ")
     }
@@ -86,7 +86,7 @@ struct ManageSavedFiltersSheet: View {
                             Image(systemName: "trash")
                         }
                         .buttonStyle(.borderless)
-                        .help("Удалить фильтр «\\(filter.name)»")
+                        .help("Удалить фильтр «\(filter.name)»")
                     }
                     .padding(.vertical, 3)
                 }
@@ -124,7 +124,7 @@ struct LabelColorSettingsSheet: View {
                     HStack {
                         Text(label)
                         Spacer()
-                        Picker("Цвет метки \\(label)", selection: colorBinding(for: label)) {
+                        Picker("Цвет метки \(label)", selection: colorBinding(for: label)) {
                             Text("Авто").tag("")
                             ForEach(TaskLabelPalette.options) { option in
                                 Text(option.title).tag(option.id)
