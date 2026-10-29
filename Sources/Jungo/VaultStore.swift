@@ -17,6 +17,7 @@ enum VaultStore {
         case destinationAlreadyExists(URL)
         case invalidReferences
         case verificationFailed
+        case existingVaultNotFound
 
         var errorDescription: String? {
             switch self {
@@ -28,6 +29,8 @@ enum VaultStore {
                 "В базе найдены связи между досками, колонками и задачами, которые не удалось проверить. Перенос отменён."
             case .verificationFailed:
                 "Проверка новой базы не прошла. Активное хранилище осталось прежним."
+            case .existingVaultNotFound:
+                "В выбранной папке не найден Jungo.store. Восстановление доступа не изменило настройки и данные."
             }
         }
     }
@@ -113,6 +116,17 @@ enum VaultStore {
             removeStoreFiles(at: targetURL)
             throw error
         }
+    }
+
+    static func restoreAccess(to folderURL: URL) throws {
+        let folder = folderURL.standardizedFileURL
+        let storeURL = folder.appendingPathComponent("Jungo.store")
+        guard FileManager.default.fileExists(atPath: storeURL.path) else {
+            throw VaultError.existingVaultNotFound
+        }
+        let bookmark = try makeBookmark(for: folder)
+        UserDefaults.standard.set(bookmark, forKey: bookmarkDefaultsKey)
+        UserDefaults.standard.set(folder.path, forKey: pathDefaultsKey)
     }
 
     static func openCurrentFolderInFinder() {
