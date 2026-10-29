@@ -607,29 +607,25 @@ struct RootView: View {
                 .menuStyle(.borderlessButton)
             }
             if columnTasks.isEmpty {
-                VStack(spacing: 9) {
+                VStack(spacing: 8) {
                     Image(systemName: hasTasksBeforeFilters && hasActiveFilters ? "line.3.horizontal.decrease.circle" : "tray")
                         .font(.title2)
-                    Text(hasTasksBeforeFilters && hasActiveFilters ? "Нет совпадений" : "Пока нет задач")
+                    Text(hasTasksBeforeFilters && hasActiveFilters ? "Нет совпадений" : "Колонка пока пустая")
                         .font(.subheadline.weight(.medium))
-                    Text(hasTasksBeforeFilters && hasActiveFilters
-                         ? "Измени условия или сбрось фильтры."
-                         : "Добавь первую задачу в эту колонку.")
-                        .font(.caption)
-                        .multilineTextAlignment(.center)
                     if hasTasksBeforeFilters && hasActiveFilters {
+                        Text("Попробуй изменить условия поиска.")
+                            .font(.caption)
+                            .multilineTextAlignment(.center)
                         Button("Сбросить фильтры", action: clearFilters)
                             .buttonStyle(.bordered)
-                    } else {
-                        Button("Создать первую задачу", systemImage: "plus") {
-                            createTask(in: column)
-                        }
-                        .buttonStyle(.bordered)
                     }
                 }
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 24)
+                // Keep empty columns quiet: the global “Новая задача” action
+                // creates tasks, while the per-column add control appears only
+                // once the column has content. Avoid repeating three CTAs.
             }
             ForEach(columnTasks) { task in
                 Button {
@@ -663,13 +659,17 @@ struct RootView: View {
                         Button("Удалить…", role: .destructive) { taskPendingDeletionID = task.id }
                     }
             }
-            Button { createTask(in: column) } label: {
-                Label("Добавить задачу", systemImage: "plus")
-                    .font(.subheadline).foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading).padding(10)
-                    .contentShape(Rectangle())
+            if !columnTasks.isEmpty {
+                Button { createTask(in: column) } label: {
+                    Label("Добавить задачу", systemImage: "plus")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(10)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
             Spacer(minLength: 0)
         }
         .padding(12)
@@ -864,12 +864,10 @@ struct RootView: View {
             insertion = destinationTasks.count
         }
 
-        // Reordering a SwiftData-backed ForEach with implicit animations can
-        // make a drop feel sticky. Apply the whole relationship/order update
-        // as one non-animated transaction, then persist once.
-        var transaction = Transaction()
-        transaction.animation = nil
-        withTransaction(transaction) {
+        // Animate the model update as one coordinated move. A short spring
+        // lets the source and destination columns settle together without the
+        // long, bouncy motion that makes a Kanban board feel sluggish.
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
             if !isReorderingWithinColumn {
                 task.columnID = destination.id
             }
