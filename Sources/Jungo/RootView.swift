@@ -794,27 +794,62 @@ struct RootView: View {
     }
 
     private func moveTask(_ taskID: UUID, to destination: BoardColumn, before targetID: UUID?) {
-        guard let task = allTasks.first(where: { $0.id == taskID }), !task.isInTrash, task.id != targetID,
+        guard let task = allTasks.first(where: { $0.id == taskID }),
+              !task.isInTrash,
+              task.id != targetID,
               let destinationBoard = boards.first(where: { $0.id == destination.boardID }),
               destinationBoard.id == selectedBoard?.id else { return }
 
         let sourceColumnID = task.columnID
-        var sourceTasks = allTasks.filter { $0.columnID == sourceColumnID && $0.id != taskID && !$0.isInTrash }.sorted { $0.sortOrder < $1.sortOrder }
-        var destinationTasks = allTasks.filter { $0.columnID == destination.id && $0.id != taskID && !$0.isInTrash }.sorted { $0.sortOrder < $1.sortOrder }
+        let isReorderingWithinColumn = sourceColumnID == destination.id
+
+        // Scan the fetched tasks once, rather than filtering the entire collection
+        // separately for source and destination on every drop.
+        var sourceTasks: [TaskCard] = []
+        var destinationTasks: [TaskCard] = []
+        for candidate in allTasks where !candidate.isInTrash && candidate.id != taskID {
+            if candidate.columnID == sourceColumnID {
+                sourceTasks.append(candidate)
+            }
+            if candidate.columnID == destination.id {
+                destinationTasks.append(candidate)
+            }
+        }
+
+        if isReorderingWithinColumn {
+            destinationTasks.sort { $0.sortOrder < $1.sortOrder }
+        } else {
+            sourceTasks.sort { $0.sortOrder < $1.sortOrder }
+            destinationTasks.sort { $0.sortOrder < $1.sortOrder }
+        }
+
         let insertion: Int
         if let targetID, let targetIndex = destinationTasks.firstIndex(where: { $0.id == targetID }) {
             insertion = targetIndex
         } else {
             insertion = destinationTasks.count
         }
-        task.columnID = destination.id
-        destinationTasks.insert(task, at: min(insertion, destinationTasks.count))
-        for (index, item) in destinationTasks.enumerated() { item.sortOrder = index }
-        for (index, item) in sourceTasks.enumerated() { item.sortOrder = index }
-        if sourceColumnID == destination.id {
-            sourceTasks = destinationTasks
-            for (index, item) in sourceTasks.enumerated() { item.sortOrder = index }
+
+        // Reordering a SwiftData-backed ForEach with implicit animations can
+        // make a drop feel sticky. Apply the whole relationship/order update
+        // as one non-animated transaction, then persist once.
+        var transaction = Transaction()
+        transaction.animation = nil
+        withTransaction(transaction) {
+            if !isReorderingWithinColumn {
+                task.columnID = destination.id
+            }
+            destinationTasks.insert(task, at: min(insertion, destinationTasks.count))
+            for (index, item) in destinationTasks.enumerated() {
+                item.sortOrder = index
+            }
+            if !isReorderingWithinColumn {
+                for (index, item) in sourceTasks.enumerated() {
+                    item.sortOrder = index
+                }
+            }
         }
+
         _ = saveChanges()
     }
 
