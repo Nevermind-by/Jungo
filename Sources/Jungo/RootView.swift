@@ -1027,9 +1027,6 @@ struct RootView: View {
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
             let archive = try decoder.decode(JungoArchive.self, from: Data(contentsOf: url))
-            let previousUndoManager = modelContext.undoManager
-            modelContext.undoManager = nil
-            defer { modelContext.undoManager = previousUndoManager }
             let importedBoardID = try archive.importInto(modelContext)
             if let importedBoardID {
                 selectedBoardID = importedBoardID
