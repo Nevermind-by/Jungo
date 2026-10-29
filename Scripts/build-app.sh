@@ -77,7 +77,8 @@ if [[ ! -s "$ICON_STAGING" ]]; then
   echo "Generated app icon is missing or empty: $ICON_STAGING" >&2
   exit 1
 fi
-ICON_VALIDATION="$ICON_STAGING_DIR/validated-iconset"
+# iconutil requires the output path of an iconset to end in ".iconset".
+ICON_VALIDATION="$ICON_STAGING_DIR/validated.iconset"
 rm -rf "$ICON_VALIDATION"
 iconutil -c iconset "$ICON_STAGING" -o "$ICON_VALIDATION"
 if [[ ! -s "$ICON_VALIDATION/icon_512x512.png" ]]; then
