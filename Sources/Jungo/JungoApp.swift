@@ -25,6 +25,10 @@ struct JungoApp: App {
                     NotificationCenter.default.post(name: .jungoFocusSearch, object: nil)
                 }
                 .keyboardShortcut("f", modifiers: [.command])
+                Button("Быстро добавить задачу") {
+                    NotificationCenter.default.post(name: .jungoQuickAddTask, object: nil)
+                }
+                .keyboardShortcut("n", modifiers: [.command, .option])
                 Button("Корзина") {
                     NotificationCenter.default.post(name: .jungoToggleTrash, object: nil)
                 }
@@ -38,5 +42,6 @@ extension Notification.Name {
     static let jungoCreateTask = Notification.Name("jungo.createTask")
     static let jungoCreateBoard = Notification.Name("jungo.createBoard")
     static let jungoFocusSearch = Notification.Name("jungo.focusSearch")
+    static let jungoQuickAddTask = Notification.Name("jungo.quickAddTask")
     static let jungoToggleTrash = Notification.Name("jungo.toggleTrash")
 }
