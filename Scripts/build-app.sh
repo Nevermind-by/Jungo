@@ -66,10 +66,30 @@ if [[ ! -x "$EXECUTABLE" ]]; then
   exit 1
 fi
 
+# Generate and validate the icon before touching the existing app bundle.
+# If icon generation fails, preserve the last usable build for recovery.
+ICON_STAGING_DIR="$ROOT_DIR/.build/jungo-icon-staging"
+ICON_STAGING="$ICON_STAGING_DIR/AppIcon.icns"
+mkdir -p "$ICON_STAGING_DIR"
+rm -f "$ICON_STAGING"
+swift "$ROOT_DIR/Scripts/generate-icon.swift" "$ICON_STAGING"
+if [[ ! -s "$ICON_STAGING" ]]; then
+  echo "Generated app icon is missing or empty: $ICON_STAGING" >&2
+  exit 1
+fi
+ICON_VALIDATION="$ICON_STAGING_DIR/validated-iconset"
+rm -rf "$ICON_VALIDATION"
+iconutil -c iconset "$ICON_STAGING" -o "$ICON_VALIDATION"
+if [[ ! -s "$ICON_VALIDATION/icon_512x512.png" ]]; then
+  echo "Generated icon could not be validated at 512x512." >&2
+  exit 1
+fi
+rm -rf "$ICON_VALIDATION"
+
 rm -rf "$APP_PATH"
 mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Resources"
 cp "$EXECUTABLE" "$CONTENTS/MacOS/$APP_NAME"
-swift "$ROOT_DIR/Scripts/generate-icon.swift" "$CONTENTS/Resources/AppIcon.icns"
+cp "$ICON_STAGING" "$CONTENTS/Resources/AppIcon.icns"
 chmod 755 "$CONTENTS/MacOS/$APP_NAME"
 
 cat > "$CONTENTS/Info.plist" <<PLIST
@@ -88,6 +108,8 @@ cat > "$CONTENTS/Info.plist" <<PLIST
     <key>CFBundleName</key>
     <string>Jungo</string>
     <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>CFBundleIconName</key>
     <string>AppIcon</string>
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Jungo</string>
