@@ -54,7 +54,17 @@ struct RootView: View {
     }
 
     private var selectedBoard: Board? {
-        boards.first(where: { $0.id == selectedBoardID }) ?? boards.first
+        boards.first(where: { $0.id == selectedBoardID })
+            ?? boards.filter { !$0.isArchived }.sorted { $0.sortOrder < $1.sortOrder }.first
+            ?? boards.sorted { $0.sortOrder < $1.sortOrder }.first
+    }
+
+    private var activeBoards: [Board] {
+        boards.filter { !$0.isArchived }.sorted { $0.sortOrder < $1.sortOrder }
+    }
+
+    private var archivedBoards: [Board] {
+        boards.filter(\\.isArchived).sorted { $0.sortOrder < $1.sortOrder }
     }
 
     private var visibleColumns: [BoardColumn] {
@@ -136,7 +146,7 @@ struct RootView: View {
     private var sidebar: some View {
         List(selection: $selectedBoardID) {
             Section("Доски") {
-                ForEach(boards.sorted(by: { $0.sortOrder < $1.sortOrder })) { board in
+                ForEach(activeBoards) { board in
                     Label(board.title, systemImage: "rectangle.split.3x1")
                         .tag(board.id)
                         .contextMenu {
@@ -145,11 +155,37 @@ struct RootView: View {
                                 nameInput = board.title
                                 isNamingBoard = true
                             }
+                            Button("В архив", systemImage: "archivebox") {
+                                archiveBoard(board)
+                            }
                             Button("Удалить доску…", role: .destructive) {
                                 selectedBoardID = board.id
                                 showDeleteBoardConfirmation = true
                             }
                         }
+                }
+            }
+            if !archivedBoards.isEmpty {
+                Section("Архив") {
+                    ForEach(archivedBoards) { board in
+                        Label(board.title, systemImage: "archivebox")
+                            .tag(board.id)
+                            .foregroundStyle(.secondary)
+                            .contextMenu {
+                                Button("Восстановить из архива", systemImage: "arrow.uturn.backward") {
+                                    restoreBoardFromArchive(board)
+                                }
+                                Button("Переименовать") {
+                                    editingBoardID = board.id
+                                    nameInput = board.title
+                                    isNamingBoard = true
+                                }
+                                Button("Удалить доску…", role: .destructive) {
+                                    selectedBoardID = board.id
+                                    showDeleteBoardConfirmation = true
+                                }
+                            }
+                    }
                 }
             }
         }
@@ -186,6 +222,11 @@ struct RootView: View {
             HStack(alignment: .center, spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(showTrash ? "Корзина" : board.title).font(.largeTitle.weight(.bold))
+                    if board.isArchived && !showTrash {
+                        Label("В архиве", systemImage: "archivebox")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.secondary)
+                    }
                     Text(showTrash ? "\(trashedTasks(for: board).count) в корзине" : "\(visibleColumns.reduce(0) { $0 + tasks(in: $1).count }) задач")
                         .foregroundStyle(.secondary).font(.subheadline)
                 }
@@ -278,6 +319,15 @@ struct RootView: View {
                     Divider()
                     if !showTrash {
                         Button("Добавить колонку", action: beginAddColumn)
+                        if board.isArchived {
+                            Button("Восстановить доску из архива", systemImage: "arrow.uturn.backward") {
+                                restoreBoardFromArchive(board)
+                            }
+                        } else {
+                            Button("Переместить доску в архив", systemImage: "archivebox") {
+                                archiveBoard(board)
+                            }
+                        }
                     }
                     Button("Экспортировать данные…", action: exportArchive)
                     Button("Импортировать данные…", action: importArchive)
@@ -582,8 +632,31 @@ struct RootView: View {
         for task in allTasks where taskIDs.contains(task.id) { modelContext.delete(task) }
         for column in columns { modelContext.delete(column) }
         modelContext.delete(board)
-        selectedBoardID = boards.first(where: { $0.id != board.id })?.id
+        selectedBoardID = activeBoards.first(where: { $0.id != board.id })?.id
+            ?? boards.first(where: { $0.id != board.id })?.id
         _ = saveChanges()
+    }
+
+    private func archiveBoard(_ board: Board) {
+        guard !board.isArchived else { return }
+        board.isArchived = true
+        if selectedBoardID == board.id {
+            selectedBoardID = activeBoards.first(where: { $0.id != board.id })?.id ?? board.id
+            showTrash = false
+        }
+        if saveChanges() {
+            statusMessage = "Доска «\\(board.title)» перемещена в архив."
+        }
+    }
+
+    private func restoreBoardFromArchive(_ board: Board) {
+        guard board.isArchived else { return }
+        board.isArchived = false
+        selectedBoardID = board.id
+        showTrash = false
+        if saveChanges() {
+            statusMessage = "Доска «\\(board.title)» восстановлена из архива."
+        }
     }
 
     private func seedIfNeeded() {

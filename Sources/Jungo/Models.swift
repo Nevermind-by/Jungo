@@ -8,12 +8,14 @@ final class Board {
     var title: String
     var sortOrder: Int
     var createdAt: Date
+    var isArchived: Bool = false
 
-    init(id: UUID = UUID(), title: String, sortOrder: Int = 0, createdAt: Date = .now) {
+    init(id: UUID = UUID(), title: String, sortOrder: Int = 0, createdAt: Date = .now, isArchived: Bool = false) {
         self.id = id
         self.title = title
         self.sortOrder = sortOrder
         self.createdAt = createdAt
+        self.isArchived = isArchived
     }
 }
 
