@@ -32,7 +32,7 @@ func drawIcon(size: Int) throws -> Data {
     let unit = CGFloat(size)
     let bounds = NSRect(x: 0, y: 0, width: unit, height: unit)
     NSColor.clear.setFill()
-    NSRectFill(bounds)
+    bounds.fill()
 
     let inset = unit * 0.035
     let background = NSBezierPath(roundedRect: bounds.insetBy(dx: inset, dy: inset), xRadius: unit * 0.23, yRadius: unit * 0.23)
