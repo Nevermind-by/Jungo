@@ -6,11 +6,20 @@ let fileManager = FileManager.default
 let outputURL = URL(fileURLWithPath: outputPath)
 let iconsetURL = outputURL.deletingLastPathComponent().appendingPathComponent("Jungo.iconset", isDirectory: true)
 
-// The requested output can live inside a not-yet-created app bundle.
-// Ensure the parent exists before writing any iconset PNG files.
 try fileManager.createDirectory(at: outputURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-// Create the iconset directory before the first PNG is written.
 try fileManager.createDirectory(at: iconsetURL, withIntermediateDirectories: true)
+
+func color(_ red: CGFloat, _ green: CGFloat, _ blue: CGFloat, _ alpha: CGFloat = 1) -> NSColor {
+    NSColor(calibratedRed: red, green: green, blue: blue, alpha: alpha)
+}
+
+func roundedRect(_ rect: NSRect, radius: CGFloat) -> NSBezierPath {
+    NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
+}
+
+func fillGradient(_ path: NSBezierPath, colors: [NSColor], angle: CGFloat = 90) {
+    (NSGradient(colors: colors) ?? NSGradient(starting: colors[0], ending: colors[0]))?.draw(in: path, angle: angle)
+}
 
 func drawIcon(size: Int) throws -> Data {
     guard let bitmap = NSBitmapImageRep(
@@ -32,58 +41,70 @@ func drawIcon(size: Int) throws -> Data {
     NSGraphicsContext.current = context
     context.imageInterpolation = .high
 
-    let unit = CGFloat(size)
-    let bounds = NSRect(x: 0, y: 0, width: unit, height: unit)
-    let inset = unit * 0.035
-    let iconBounds = bounds.insetBy(dx: inset, dy: inset)
+    let u = CGFloat(size)
+    let bounds = NSRect(x: 0, y: 0, width: u, height: u)
+    let inset = u * 0.035
+    let tile = roundedRect(bounds.insetBy(dx: inset, dy: inset), radius: u * 0.225)
 
-    // Minimal Jungo mark: a calm warm-white tile, three dark Kanban lanes,
-    // and one vivid blue task card. Avoid gradients, tiny lines, and layered
-    // decoration so the silhouette stays clear in Dock and Spotlight.
-    let backgroundPath = NSBezierPath(
-        roundedRect: iconBounds,
-        xRadius: unit * 0.225,
-        yRadius: unit * 0.225
-    )
-    NSColor(calibratedRed: 0.95, green: 0.96, blue: 0.99, alpha: 1).setFill()
-    backgroundPath.fill()
+    // Deep midnight glass base: rich and dimensional, without a neon frame.
+    fillGradient(tile, colors: [
+        color(0.075, 0.13, 0.21),
+        color(0.035, 0.065, 0.12),
+        color(0.055, 0.10, 0.17)
+    ], angle: 90)
+    color(0.52, 0.69, 0.82, 0.18).setStroke()
+    tile.lineWidth = max(0.7, u * 0.0025)
+    tile.stroke()
 
-    let laneColor = NSColor(calibratedRed: 0.16, green: 0.20, blue: 0.31, alpha: 1)
-    let laneY = unit * 0.22
-    let laneHeight = unit * 0.56
-    let laneWidth = unit * 0.17
-    let laneGap = unit * 0.075
-    let lanesWidth = laneWidth * 3 + laneGap * 2
-    let laneStartX = (unit - lanesWidth) / 2
-    let laneRadius = unit * 0.065
+    // Three glass lanes sit at different depths/heights to give the mark
+    // an intentional, slightly asymmetric silhouette at Dock size.
+    let laneSpecs: [(x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat, top: NSColor, bottom: NSColor)] = [
+        (0.205, 0.245, 0.165, 0.49, color(0.20, 0.29, 0.46, 0.88), color(0.10, 0.16, 0.29, 0.96)),
+        (0.415, 0.17, 0.17, 0.62, color(0.31, 0.42, 0.61, 0.88), color(0.12, 0.20, 0.34, 0.97)),
+        (0.63, 0.235, 0.165, 0.50, color(0.24, 0.35, 0.54, 0.88), color(0.10, 0.17, 0.30, 0.96))
+    ]
 
-    for index in 0..<3 {
-        let x = laneStartX + CGFloat(index) * (laneWidth + laneGap)
-        let lane = NSBezierPath(
-            roundedRect: NSRect(x: x, y: laneY, width: laneWidth, height: laneHeight),
-            xRadius: laneRadius,
-            yRadius: laneRadius
-        )
-        laneColor.setFill()
-        lane.fill()
+    for spec in laneSpecs {
+        let rect = NSRect(x: u * spec.x, y: u * spec.y, width: u * spec.w, height: u * spec.h)
+        let lane = roundedRect(rect, radius: u * 0.055)
+        fillGradient(lane, colors: [spec.top, spec.bottom], angle: 90)
+        // Restrained glass contour; no outer bloom or glow.
+        color(0.76, 0.86, 0.98, 0.17).setStroke()
+        lane.lineWidth = max(0.65, u * 0.002)
+        lane.stroke()
+
+        let highlight = NSBezierPath()
+        highlight.move(to: NSPoint(x: rect.minX + u * 0.018, y: rect.minY + u * 0.055))
+        highlight.line(to: NSPoint(x: rect.minX + u * 0.018, y: rect.maxY - u * 0.075))
+        highlight.lineWidth = max(0.5, u * 0.003)
+        color(0.86, 0.93, 1.0, 0.13).setStroke()
+        highlight.stroke()
     }
 
-    // A single floating task is the only accent and focal point.
-    let cardRect = NSRect(x: unit * 0.29, y: unit * 0.39, width: unit * 0.42, height: unit * 0.23)
-    let card = NSBezierPath(
-        roundedRect: cardRect,
-        xRadius: unit * 0.055,
-        yRadius: unit * 0.055
+    // The task card crosses the lanes, clearly reading as the focal point.
+    let cardRect = NSRect(x: u * 0.285, y: u * 0.405, width: u * 0.43, height: u * 0.235)
+    let card = roundedRect(cardRect, radius: u * 0.055)
+    context.saveGraphicsState()
+    let shadow = NSShadow()
+    shadow.shadowColor = color(0.0, 0.015, 0.06, 0.28)
+    shadow.shadowBlurRadius = u * 0.012
+    shadow.shadowOffset = NSSize(width: 0, height: -u * 0.006)
+    shadow.set()
+    fillGradient(card, colors: [color(0.30, 0.57, 1.0), color(0.13, 0.36, 0.88)], angle: 90)
+    context.restoreGraphicsState()
+
+    // A soft inset highlight adds a glass surface without a glowing outline.
+    let cardHighlight = roundedRect(
+        NSRect(x: cardRect.minX + u * 0.012, y: cardRect.midY, width: cardRect.width - u * 0.024, height: cardRect.height * 0.43),
+        radius: u * 0.035
     )
-    NSColor(calibratedRed: 0.20, green: 0.43, blue: 0.98, alpha: 1).setFill()
-    card.fill()
+    color(0.75, 0.87, 1.0, 0.12).setFill()
+    cardHighlight.fill()
+
     context.flushGraphics()
     NSGraphicsContext.restoreGraphicsState()
 
-    // Explicitly set logical size so AppKit emits a correctly sized icon image
-    // for each iconset representation, rather than relying on inferred DPI.
     bitmap.size = NSSize(width: size, height: size)
-
     guard let tiff = bitmap.tiffRepresentation,
           let pngBitmap = NSBitmapImageRep(data: tiff),
           let png = pngBitmap.representation(using: .png, properties: [:]) else {
