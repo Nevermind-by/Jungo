@@ -81,25 +81,32 @@ func drawIcon(size: Int) throws -> Data {
         highlight.stroke()
     }
 
-    // The task card crosses the lanes, clearly reading as the focal point.
+    // The foreground task card is deliberately tilted, echoing the reference
+    // concept's layered perspective without adding neon or an illuminated rim.
     let cardRect = NSRect(x: u * 0.285, y: u * 0.405, width: u * 0.43, height: u * 0.235)
-    let card = roundedRect(cardRect, radius: u * 0.055)
     context.saveGraphicsState()
+    let cardTransform = NSAffineTransform()
+    cardTransform.translateX(by: cardRect.midX, yBy: cardRect.midY)
+    cardTransform.rotate(byDegrees: -8)
+    cardTransform.translateX(by: -cardRect.midX, yBy: -cardRect.midY)
+    cardTransform.concat()
+
+    let card = roundedRect(cardRect, radius: u * 0.055)
     let shadow = NSShadow()
-    shadow.shadowColor = color(0.0, 0.015, 0.06, 0.28)
-    shadow.shadowBlurRadius = u * 0.012
+    shadow.shadowColor = color(0.0, 0.015, 0.06, 0.24)
+    shadow.shadowBlurRadius = u * 0.009
     shadow.shadowOffset = NSSize(width: 0, height: -u * 0.006)
     shadow.set()
-    fillGradient(card, colors: [color(0.30, 0.57, 1.0), color(0.13, 0.36, 0.88)], angle: 90)
-    context.restoreGraphicsState()
+    fillGradient(card, colors: [color(0.37, 0.66, 1.0), color(0.08, 0.31, 0.91)], angle: 90)
 
-    // A soft inset highlight adds a glass surface without a glowing outline.
-    let cardHighlight = roundedRect(
-        NSRect(x: cardRect.minX + u * 0.012, y: cardRect.midY, width: cardRect.width - u * 0.024, height: cardRect.height * 0.43),
-        radius: u * 0.035
-    )
-    color(0.75, 0.87, 1.0, 0.12).setFill()
-    cardHighlight.fill()
+    // A restrained surface reflection, contained inside the card only.
+    let sheen = NSBezierPath()
+    sheen.move(to: NSPoint(x: cardRect.minX + u * 0.02, y: cardRect.maxY - u * 0.025))
+    sheen.line(to: NSPoint(x: cardRect.maxX - u * 0.025, y: cardRect.maxY - u * 0.025))
+    sheen.lineWidth = max(0.6, u * 0.002)
+    color(0.90, 0.96, 1.0, 0.20).setStroke()
+    sheen.stroke()
+    context.restoreGraphicsState()
 
     context.flushGraphics()
     NSGraphicsContext.restoreGraphicsState()
