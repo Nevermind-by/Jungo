@@ -1188,7 +1188,7 @@ private struct ChecklistDraft: Identifiable {
 private struct TaskEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \\TaskChecklistItem.sortOrder) private var allChecklistItems: [TaskChecklistItem]
+    @Query(sort: \TaskChecklistItem.sortOrder) private var allChecklistItems: [TaskChecklistItem]
 
     let task: TaskCard
     let onSave: () -> Bool
@@ -1258,14 +1258,14 @@ private struct TaskEditorSheet: View {
                 HStack {
                     Text("Чек-лист").font(.subheadline.weight(.semibold))
                     Spacer()
-                    Text("\(draftChecklistItems.filter(\\.isCompleted).count)/\(draftChecklistItems.count)")
+                    Text("\(draftChecklistItems.filter(\.isCompleted).count)/\(draftChecklistItems.count)")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 ForEach($draftChecklistItems) { $item in
                     HStack(spacing: 8) {
                         Toggle("Выполнено", isOn: $item.isCompleted)
                             .labelsHidden()
-                            .accessibilityLabel("Выполнено: \\(item.title)")
+                            .accessibilityLabel("Выполнено: \(item.title)")
                         TextField("Пункт чек-листа", text: $item.title)
                             .textFieldStyle(.roundedBorder)
                         Button(role: .destructive) {
@@ -1275,7 +1275,7 @@ private struct TaskEditorSheet: View {
                         }
                         .buttonStyle(.plain)
                         .help("Удалить пункт")
-                        .accessibilityLabel("Удалить пункт: \\(item.title)")
+                        .accessibilityLabel("Удалить пункт: \(item.title)")
                     }
                 }
                 HStack {
@@ -1325,7 +1325,7 @@ private struct TaskEditorSheet: View {
         }
         task.dueDate = draftHasDueDate ? draftDueDate : nil
 
-        let draftIDs = Set(draftChecklistItems.map(\\.id))
+        let draftIDs = Set(draftChecklistItems.map(\.id))
         for item in checklistItems where !draftIDs.contains(item.id) {
             modelContext.delete(item)
         }
