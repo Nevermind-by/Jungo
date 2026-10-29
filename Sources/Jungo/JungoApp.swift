@@ -52,22 +52,24 @@ struct MenuBarQuickCaptureMenu: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        Button("Быстро добавить задачу") {
-            GlobalHotKeyManager.shared.requestQuickCapture()
-        }
-        .keyboardShortcut("n", modifiers: [.command, .option])
+        Group {
+            Button("Быстро добавить задачу") {
+                GlobalHotKeyManager.shared.requestQuickCapture()
+            }
+            .keyboardShortcut("n", modifiers: [.command, .option])
 
-        Button("Открыть Jungo") {
-            openWindow(id: "main")
-            NSApp.activate(ignoringOtherApps: true)
-        }
+            Button("Открыть Jungo") {
+                openWindow(id: "main")
+                NSApp.activate(ignoringOtherApps: true)
+            }
 
-        Divider()
-        Text("Глобальная клавиша: ⌘⌥Space")
-            .foregroundStyle(.secondary)
-    }
-    .onAppear {
-        GlobalHotKeyManager.shared.configure(openWindow: { openWindow(id: "main") })
+            Divider()
+            Text("Глобальная клавиша: ⌘⌥Space")
+                .foregroundStyle(.secondary)
+        }
+        .onAppear {
+            GlobalHotKeyManager.shared.configure(openWindow: { openWindow(id: "main") })
+        }
     }
 }
 
