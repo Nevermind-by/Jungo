@@ -22,8 +22,9 @@ SKIP_CODESIGN=1 "$ROOT_DIR/Scripts/build-app.sh" "$APP_PATH"
 codesign --force --deep --options runtime --timestamp --sign "$DEVELOPER_ID" "$APP_PATH"
 codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 
-STAGING_ZIP="$(mktemp -t jungo-notary).zip"
-trap 'rm -f "$STAGING_ZIP"' EXIT
+STAGING_DIR="$(mktemp -d -t jungo-notary)"
+STAGING_ZIP="$STAGING_DIR/Jungo-notary.zip"
+trap 'rm -rf "$STAGING_DIR"' EXIT
 ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$STAGING_ZIP"
 xcrun notarytool submit "$STAGING_ZIP" --keychain-profile "$NOTARY_PROFILE" --wait
 xcrun stapler staple "$APP_PATH"

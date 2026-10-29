@@ -26,6 +26,7 @@ struct RootView: View {
     @State private var priorityFilter: PriorityFilter = .all
     @State private var showOverdueOnly = false
     @State private var showTrash = false
+    @FocusState private var isSearchFocused: Bool
     @State private var errorMessage: String?
     @State private var statusMessage: String?
 
@@ -75,7 +76,19 @@ struct RootView: View {
             if let newValue { persistedSelectedBoardID = newValue.uuidString }
         }
         .onReceive(NotificationCenter.default.publisher(for: .jungoCreateTask)) { _ in
-            if let column = visibleColumns.first { createTask(in: column) }
+            guard !showTrash, let column = visibleColumns.first else { return }
+            createTask(in: column)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .jungoCreateBoard)) { _ in
+            editingBoardID = nil
+            nameInput = ""
+            isNamingBoard = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .jungoToggleTrash)) { _ in
+            showTrash.toggle()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .jungoFocusSearch)) { _ in
+            if !showTrash { isSearchFocused = true }
         }
         .sheet(item: $selectedTask) { task in TaskEditorSheet(task: task, onSave: saveChanges) }
         .confirmationDialog("Удалить доску и все её задачи?", isPresented: $showDeleteBoardConfirmation, titleVisibility: .visible) {
@@ -169,6 +182,7 @@ struct RootView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
                         TextField("Поиск задач", text: $searchText).textFieldStyle(.plain).frame(width: 145)
+                            .focused($isSearchFocused)
                             .accessibilityLabel("Поиск задач")
                     }
                     .padding(.horizontal, 10).padding(.vertical, 8)
