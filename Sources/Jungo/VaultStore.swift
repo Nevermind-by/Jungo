@@ -4,6 +4,7 @@ import AppKit
 
 /// Owns the on-disk SwiftData location. The original default.store location is retained
 /// until the user explicitly moves the vault.
+@MainActor
 enum VaultStore {
     static let bookmarkDefaultsKey = "jungo.vault.folderBookmark"
     static let pathDefaultsKey = "jungo.vault.folderPath"
@@ -214,6 +215,44 @@ enum VaultStore {
         let copiedTasks = try targetContext.fetch(FetchDescriptor<TaskCard>())
         let copiedChecklistItems = try targetContext.fetch(FetchDescriptor<TaskChecklistItem>())
 
+        let copiedBoardsByID = Dictionary(uniqueKeysWithValues: copiedBoards.map { ($0.id, $0) })
+        let copiedColumnsByID = Dictionary(uniqueKeysWithValues: copiedColumns.map { ($0.id, $0) })
+        let copiedTasksByID = Dictionary(uniqueKeysWithValues: copiedTasks.map { ($0.id, $0) })
+        let copiedChecklistByID = Dictionary(uniqueKeysWithValues: copiedChecklistItems.map { ($0.id, $0) })
+
+        let boardValuesMatch = boards.allSatisfy { source in
+            guard let copy = copiedBoardsByID[source.id] else { return false }
+            return copy.title == source.title
+                && copy.sortOrder == source.sortOrder
+                && copy.createdAt == source.createdAt
+                && copy.isArchived == source.isArchived
+        }
+        let columnValuesMatch = columns.allSatisfy { source in
+            guard let copy = copiedColumnsByID[source.id] else { return false }
+            return copy.title == source.title
+                && copy.sortOrder == source.sortOrder
+                && copy.boardID == source.boardID
+        }
+        let taskValuesMatch = tasks.allSatisfy { source in
+            guard let copy = copiedTasksByID[source.id] else { return false }
+            return copy.title == source.title
+                && copy.details == source.details
+                && copy.labelsText == source.labelsText
+                && copy.priorityRawValue == source.priorityRawValue
+                && copy.sortOrder == source.sortOrder
+                && copy.columnID == source.columnID
+                && copy.createdAt == source.createdAt
+                && copy.dueDate == source.dueDate
+                && copy.isInTrash == source.isInTrash
+        }
+        let checklistValuesMatch = checklistItems.allSatisfy { source in
+            guard let copy = copiedChecklistByID[source.id] else { return false }
+            return copy.title == source.title
+                && copy.isCompleted == source.isCompleted
+                && copy.sortOrder == source.sortOrder
+                && copy.taskID == source.taskID
+        }
+
         guard copiedBoards.count == boards.count,
               copiedColumns.count == columns.count,
               copiedTasks.count == tasks.count,
@@ -221,7 +260,11 @@ enum VaultStore {
               Set(copiedBoards.map(\.id)) == boardIDs,
               Set(copiedColumns.map(\.id)) == columnIDs,
               Set(copiedTasks.map(\.id)) == taskIDs,
-              Set(copiedChecklistItems.map(\.id)) == Set(checklistItems.map(\.id)) else {
+              Set(copiedChecklistItems.map(\.id)) == Set(checklistItems.map(\.id)),
+              boardValuesMatch,
+              columnValuesMatch,
+              taskValuesMatch,
+              checklistValuesMatch else {
             throw VaultError.verificationFailed
         }
     }
