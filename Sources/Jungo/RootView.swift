@@ -605,6 +605,10 @@ struct RootView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(taskAccessibilitySummary(for: task, checklistItems: checklistItemsByTask[task.id] ?? []))
+                .accessibilityHint("Используй стрелки, чтобы менять порядок задачи или перемещать её между колонками.")
+                .onMoveCommand { direction in
+                    moveTask(task, using: direction)
+                }
                 .draggable(task.id.uuidString)
                     .dropDestination(for: String.self) { identifiers, _ in
                         guard let rawID = identifiers.first, let draggedID = UUID(uuidString: rawID) else { return false }
@@ -811,6 +815,45 @@ struct RootView: View {
             for (index, item) in sourceTasks.enumerated() { item.sortOrder = index }
         }
         _ = saveChanges()
+    }
+
+    /// Supports keyboard-only task management while a task card has focus.
+    /// Up/Down reorders within the current column; Left/Right moves to an adjacent column.
+    private func moveTask(_ task: TaskCard, using direction: MoveCommandDirection) {
+        guard !showTrash, !hasActiveFilters,
+              let sourceIndex = visibleColumns.firstIndex(where: { $0.id == task.columnID }) else { return }
+
+        switch direction {
+        case .up, .down:
+            let ordered = allTasks
+                .filter { $0.columnID == task.columnID && !$0.isInTrash }
+                .sorted { $0.sortOrder < $1.sortOrder }
+            guard let currentIndex = ordered.firstIndex(where: { $0.id == task.id }) else { return }
+            let targetIndex = currentIndex + (direction == .up ? -1 : 1)
+            guard ordered.indices.contains(targetIndex) else { return }
+
+            var reordered = ordered
+            reordered.swapAt(currentIndex, targetIndex)
+            for (index, item) in reordered.enumerated() {
+                item.sortOrder = index
+            }
+            if saveChanges() {
+                statusMessage = "Порядок задачи «\\(task.title)» изменён."
+            }
+
+        case .left:
+            guard sourceIndex > 0 else { return }
+            moveTask(task.id, to: visibleColumns[sourceIndex - 1], before: nil)
+            statusMessage = "Задача «\\(task.title)» перемещена в «\\(visibleColumns[sourceIndex - 1].title)»."
+
+        case .right:
+            guard sourceIndex + 1 < visibleColumns.count else { return }
+            moveTask(task.id, to: visibleColumns[sourceIndex + 1], before: nil)
+            statusMessage = "Задача «\\(task.title)» перемещена в «\\(visibleColumns[sourceIndex + 1].title)»."
+
+        @unknown default:
+            return
+        }
     }
 
     private func beginAddColumn() {
