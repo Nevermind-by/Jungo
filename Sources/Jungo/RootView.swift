@@ -24,6 +24,7 @@ struct RootView: View {
     @State private var showDeleteBoardConfirmation = false
     @State private var searchText = ""
     @State private var priorityFilter: PriorityFilter = .all
+    @State private var selectedLabel = ""
     @State private var showOverdueOnly = false
     @State private var showTrash = false
     @FocusState private var isSearchFocused: Bool
@@ -60,6 +61,14 @@ struct RootView: View {
         return allColumns.filter { $0.boardID == board.id }.sorted { $0.sortOrder < $1.sortOrder }
     }
 
+    private var availableLabels: [String] {
+        let columnIDs = Set(visibleColumns.map(\.id))
+        let labels = allTasks
+            .filter { !$0.isInTrash && columnIDs.contains($0.columnID) }
+            .flatMap { $0.labels }
+        return Array(Set(labels)).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
     var body: some View {
         NavigationSplitView {
             sidebar
@@ -74,6 +83,7 @@ struct RootView: View {
         .task { seedIfNeeded() }
         .onChange(of: selectedBoardID) { _, newValue in
             if let newValue { persistedSelectedBoardID = newValue.uuidString }
+            selectedLabel = ""
         }
         .onReceive(NotificationCenter.default.publisher(for: .jungoCreateTask)) { _ in
             guard !showTrash, let column = visibleColumns.first else { return }
@@ -226,6 +236,29 @@ struct RootView: View {
                     Button(showTrash ? "Вернуться к доске" : "Открыть корзину (\(trashedTasks(for: board).count))", systemImage: showTrash ? "arrow.uturn.backward" : "trash") {
                         showTrash.toggle()
                     }
+                    if !showTrash {
+                        Menu {
+                            Button {
+                                selectedLabel = ""
+                            } label: {
+                                Label("Все метки", systemImage: selectedLabel.isEmpty ? "checkmark" : "tag")
+                            }
+                            ForEach(availableLabels, id: \.self) { label in
+                                Button {
+                                    selectedLabel = label
+                                } label: {
+                                    if selectedLabel == label {
+                                        Label(label, systemImage: "checkmark")
+                                    } else {
+                                        Text(label)
+                                    }
+                                }
+                            }
+                        } label: {
+                            Label(selectedLabel.isEmpty ? "Фильтр по метке" : selectedLabel, systemImage: "tag")
+                        }
+                        .disabled(availableLabels.isEmpty)
+                    }
                     Divider()
                     if !showTrash {
                         Button("Добавить колонку", action: beginAddColumn)
@@ -285,9 +318,14 @@ struct RootView: View {
                 .menuStyle(.borderlessButton)
             }
             ForEach(columnTasks) { task in
-                TaskCardView(task: task, checklistItems: allChecklistItems.filter { $0.taskID == task.id }.sorted { $0.sortOrder < $1.sortOrder })
-                    .onTapGesture { selectedTask = task }
-                    .draggable(task.id.uuidString)
+                Button {
+                    selectedTask = task
+                } label: {
+                    TaskCardView(task: task, checklistItems: allChecklistItems.filter { $0.taskID == task.id }.sorted { $0.sortOrder < $1.sortOrder })
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Задача: \(task.title), приоритет: \(task.priority.title)")
+                .draggable(task.id.uuidString)
                     .dropDestination(for: String.self) { identifiers, _ in
                         guard let rawID = identifiers.first, let draggedID = UUID(uuidString: rawID) else { return false }
                         moveTask(draggedID, to: column, before: task.id)
@@ -329,10 +367,12 @@ struct RootView: View {
             guard task.columnID == column.id, !task.isInTrash else { return false }
             let matchesSearch = searchText.isEmpty ||
                 task.title.localizedCaseInsensitiveContains(searchText) ||
-                task.details.localizedCaseInsensitiveContains(searchText)
+                task.details.localizedCaseInsensitiveContains(searchText) ||
+                task.labels.contains { $0.localizedCaseInsensitiveContains(searchText) }
             let matchesPriority = priorityFilter.value == nil || task.priority == priorityFilter.value
+            let matchesLabel = selectedLabel.isEmpty || task.labels.contains { $0.caseInsensitiveCompare(selectedLabel) == .orderedSame }
             let matchesOverdue = !showOverdueOnly || (task.dueDate.map { $0 < Calendar.current.startOfDay(for: .now) } ?? false)
-            return matchesSearch && matchesPriority && matchesOverdue
+            return matchesSearch && matchesPriority && matchesLabel && matchesOverdue
         }.sorted { $0.sortOrder < $1.sortOrder }
     }
 
@@ -615,8 +655,7 @@ private struct TaskCardView: View {
             if !task.labels.isEmpty {
                 HStack(spacing: 5) {
                     ForEach(task.labels, id: \.self) { label in
-                        Text(label).font(.caption2).padding(.horizontal, 7).padding(.vertical, 3)
-                            .background(.quaternary, in: Capsule())
+                        TaskLabelPill(label: label)
                     }
                 }
             }
@@ -743,5 +782,26 @@ private struct ChecklistItemRow: View {
             .help("Удалить пункт")
         }
         .onChange(of: item.isCompleted) { _, _ in _ = onSave() }
+    }
+}
+
+
+private struct TaskLabelPill: View {
+    let label: String
+
+    private var tint: Color {
+        let hash = label.unicodeScalars.reduce(0) { ($0 * 31 + Int($1.value)) % 997 }
+        let palette: [Color] = [.blue, .purple, .green, .orange, .pink, .teal, .indigo]
+        return palette[hash % palette.count]
+    }
+
+    var body: some View {
+        Text(label)
+            .font(.caption2.weight(.medium))
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .foregroundStyle(tint)
+            .background(tint.opacity(0.13), in: Capsule())
+            .accessibilityLabel("Метка: \(label)")
     }
 }
