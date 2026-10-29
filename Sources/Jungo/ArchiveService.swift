@@ -33,6 +33,7 @@ struct JungoArchive: Codable {
         var columnID: UUID
         var createdAt: Date
         var dueDate: Date?
+        var isInTrash: Bool?
     }
 
     struct ChecklistRecord: Codable {
@@ -50,7 +51,7 @@ struct JungoArchive: Codable {
             boards: boards.map { .init(id: $0.id, title: $0.title, sortOrder: $0.sortOrder, createdAt: $0.createdAt) },
             columns: columns.map { .init(id: $0.id, title: $0.title, sortOrder: $0.sortOrder, boardID: $0.boardID) },
             tasks: tasks.map {
-                .init(id: $0.id, title: $0.title, details: $0.details, labelsText: $0.labelsText, priorityRawValue: $0.priorityRawValue, sortOrder: $0.sortOrder, columnID: $0.columnID, createdAt: $0.createdAt, dueDate: $0.dueDate)
+                .init(id: $0.id, title: $0.title, details: $0.details, labelsText: $0.labelsText, priorityRawValue: $0.priorityRawValue, sortOrder: $0.sortOrder, columnID: $0.columnID, createdAt: $0.createdAt, dueDate: $0.dueDate, isInTrash: $0.isInTrash)
             },
             checklistItems: checklistItems.map { .init(id: $0.id, title: $0.title, isCompleted: $0.isCompleted, sortOrder: $0.sortOrder, taskID: $0.taskID) }
         )
@@ -69,7 +70,8 @@ struct JungoArchive: Codable {
               (checklistItems ?? []).allSatisfy({ taskIDs.contains($0.taskID) }) else { throw ArchiveError.brokenReferences }
         guard boards.allSatisfy({ !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }),
               columns.allSatisfy({ !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }),
-              tasks.allSatisfy({ !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) else { throw ArchiveError.emptyTitles }
+              tasks.allSatisfy({ !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }),
+              (checklistItems ?? []).allSatisfy({ !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) else { throw ArchiveError.emptyTitles }
     }
 
     /// Imports as additional boards to avoid silently replacing existing local data.
@@ -94,7 +96,7 @@ struct JungoArchive: Codable {
             guard let columnID = columnIDMap[record.columnID] else { throw ArchiveError.brokenReferences }
             let newID = UUID()
             taskIDMap[record.id] = newID
-            context.insert(TaskCard(id: newID, title: record.title, details: record.details, labelsText: record.labelsText ?? "", priority: TaskPriority(rawValue: record.priorityRawValue) ?? .normal, sortOrder: record.sortOrder, columnID: columnID, createdAt: record.createdAt, dueDate: record.dueDate))
+            context.insert(TaskCard(id: newID, title: record.title, details: record.details, labelsText: record.labelsText ?? "", priority: TaskPriority(rawValue: record.priorityRawValue) ?? .normal, sortOrder: record.sortOrder, columnID: columnID, createdAt: record.createdAt, dueDate: record.dueDate, isInTrash: record.isInTrash ?? false))
         }
         for record in checklistItems ?? [] {
             guard let taskID = taskIDMap[record.taskID] else { throw ArchiveError.brokenReferences }
