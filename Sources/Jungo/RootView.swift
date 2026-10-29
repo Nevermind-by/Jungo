@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 
 struct RootView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.openWindow) private var openWindow
     @Query(sort: \Board.sortOrder) private var boards: [Board]
     @Query(sort: \BoardColumn.sortOrder) private var allColumns: [BoardColumn]
     @Query(sort: \TaskCard.sortOrder) private var allTasks: [TaskCard]
@@ -91,7 +92,16 @@ struct RootView: View {
             }
         }
         .navigationSplitViewStyle(.balanced)
-        .task { seedIfNeeded() }
+        .task {
+            seedIfNeeded()
+            if UserDefaults.standard.bool(forKey: "jungo.pendingQuickCapture") {
+                UserDefaults.standard.set(false, forKey: "jungo.pendingQuickCapture")
+                showQuickAdd = true
+            }
+        }
+        .onAppear {
+            GlobalHotKeyManager.shared.configure(openWindow: { openWindow(id: "main") })
+        }
         .onChange(of: selectedBoardID) { _, newValue in
             if let newValue { persistedSelectedBoardID = newValue.uuidString }
             selectedLabel = ""
