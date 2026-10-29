@@ -52,9 +52,7 @@ func drawIcon(size: Int) throws -> Data {
         color(0.035, 0.065, 0.12),
         color(0.055, 0.10, 0.17)
     ], angle: 90)
-    color(0.52, 0.69, 0.82, 0.18).setStroke()
-    tile.lineWidth = max(0.7, u * 0.0025)
-    tile.stroke()
+    // Keep the outer silhouette clean: no bright rim, no neon, no glow.
 
     // Three glass lanes sit at different depths/heights to give the mark
     // an intentional, slightly asymmetric silhouette at Dock size.
@@ -64,21 +62,32 @@ func drawIcon(size: Int) throws -> Data {
         (0.63, 0.235, 0.165, 0.50, color(0.24, 0.35, 0.54, 0.88), color(0.10, 0.17, 0.30, 0.96))
     ]
 
-    for spec in laneSpecs {
+    for (index, spec) in laneSpecs.enumerated() {
         let rect = NSRect(x: u * spec.x, y: u * spec.y, width: u * spec.w, height: u * spec.h)
+        context.saveGraphicsState()
+
+        // A tiny shared perspective lean gives the panels the same slanted
+        // top edge as the approved reference while keeping the mark readable.
+        let transform = NSAffineTransform()
+        transform.translateX(by: rect.midX, yBy: rect.midY)
+        transform.rotate(byDegrees: index == 1 ? -7 : -5)
+        transform.translateX(by: -rect.midX, yBy: -rect.midY)
+        transform.concat()
+
         let lane = roundedRect(rect, radius: u * 0.055)
         fillGradient(lane, colors: [spec.top, spec.bottom], angle: 90)
-        // Restrained glass contour; no outer bloom or glow.
-        color(0.76, 0.86, 0.98, 0.17).setStroke()
+        color(0.76, 0.86, 0.98, 0.18).setStroke()
         lane.lineWidth = max(0.65, u * 0.002)
         lane.stroke()
 
+        // A narrow internal reflection suggests frosted glass; no outer glow.
         let highlight = NSBezierPath()
         highlight.move(to: NSPoint(x: rect.minX + u * 0.018, y: rect.minY + u * 0.055))
         highlight.line(to: NSPoint(x: rect.minX + u * 0.018, y: rect.maxY - u * 0.075))
         highlight.lineWidth = max(0.5, u * 0.003)
-        color(0.86, 0.93, 1.0, 0.13).setStroke()
+        color(0.86, 0.93, 1.0, 0.16).setStroke()
         highlight.stroke()
+        context.restoreGraphicsState()
     }
 
     // The foreground task card is deliberately tilted, echoing the reference
@@ -87,7 +96,7 @@ func drawIcon(size: Int) throws -> Data {
     context.saveGraphicsState()
     let cardTransform = NSAffineTransform()
     cardTransform.translateX(by: cardRect.midX, yBy: cardRect.midY)
-    cardTransform.rotate(byDegrees: -8)
+    cardTransform.rotate(byDegrees: -12)
     cardTransform.translateX(by: -cardRect.midX, yBy: -cardRect.midY)
     cardTransform.concat()
 
