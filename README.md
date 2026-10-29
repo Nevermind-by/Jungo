@@ -63,6 +63,8 @@ Jungo хранит данные на этом Mac. В меню приложен�
 
 ## Документация
 
+- Журнал изменений: CHANGELOG.md
+
 - Продукт и требования: docs/PRODUCT.md
 - Дорожная карта: docs/ROADMAP.md
 - Архитектура: docs/ARCHITECTURE.md
