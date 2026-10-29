@@ -1,10 +1,15 @@
 import SwiftUI
 import SwiftData
+import AppKit
 
 @main
 struct JungoApp: App {
+    init() {
+        GlobalHotKeyManager.shared.start()
+    }
+
     var body: some Scene {
-        WindowGroup {
+        WindowGroup("Jungo", id: "main") {
             RootView()
                 .frame(minWidth: 860, minHeight: 560)
         }
@@ -26,7 +31,7 @@ struct JungoApp: App {
                 }
                 .keyboardShortcut("f", modifiers: [.command])
                 Button("Быстро добавить задачу") {
-                    NotificationCenter.default.post(name: .jungoQuickAddTask, object: nil)
+                    GlobalHotKeyManager.shared.requestQuickCapture()
                 }
                 .keyboardShortcut("n", modifiers: [.command, .option])
                 Button("Корзина") {
@@ -35,6 +40,34 @@ struct JungoApp: App {
                 .keyboardShortcut("t", modifiers: [.command, .shift])
             }
         }
+
+        MenuBarExtra("Jungo", systemImage: "checklist") {
+            MenuBarQuickCaptureMenu()
+        }
+        .menuBarExtraStyle(.menu)
+    }
+}
+
+struct MenuBarQuickCaptureMenu: View {
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Button("Быстро добавить задачу") {
+            GlobalHotKeyManager.shared.requestQuickCapture()
+        }
+        .keyboardShortcut("n", modifiers: [.command, .option])
+
+        Button("Открыть Jungo") {
+            openWindow(id: "main")
+            NSApp.activate(ignoringOtherApps: true)
+        }
+
+        Divider()
+        Text("Глобальная клавиша: ⌘⌥Space")
+            .foregroundStyle(.secondary)
+    }
+    .onAppear {
+        GlobalHotKeyManager.shared.configure(openWindow: { openWindow(id: "main") })
     }
 }
 
