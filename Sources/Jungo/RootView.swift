@@ -1059,6 +1059,16 @@ private struct TaskCardView: View {
     let task: TaskCard
     let checklistItems: [TaskChecklistItem]
 
+    private var isOverdue: Bool {
+        task.dueDate.map { $0 < Calendar.current.startOfDay(for: .now) } ?? false
+    }
+
+    private var accentColor: Color? {
+        if isOverdue { return .red }
+        if task.priority == .high { return .orange }
+        return nil
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(task.title).font(.system(size: 14, weight: .medium)).foregroundStyle(.primary)
@@ -1099,7 +1109,16 @@ private struct TaskCardView: View {
         }
         .padding(12)
         .jungoTaskSurface(radius: 14)
-        .contentShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(alignment: .leading) {
+            if let accentColor {
+                Capsule()
+                    .fill(accentColor)
+                    .frame(width: 3)
+                    .padding(.vertical, 10)
+                    .padding(.leading, 1)
+            }
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 14))
     }
 }
 
