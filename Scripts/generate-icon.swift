@@ -37,98 +37,46 @@ func drawIcon(size: Int) throws -> Data {
     let inset = unit * 0.035
     let iconBounds = bounds.insetBy(dx: inset, dy: inset)
 
-    // Deep indigo-to-blue glass-like base, designed to remain distinct at Dock size.
+    // Minimal Jungo mark: a calm warm-white tile, three dark Kanban lanes,
+    // and one vivid blue task card. Avoid gradients, tiny lines, and layered
+    // decoration so the silhouette stays clear in Dock and Spotlight.
     let backgroundPath = NSBezierPath(
         roundedRect: iconBounds,
-        xRadius: unit * 0.235,
-        yRadius: unit * 0.235
+        xRadius: unit * 0.225,
+        yRadius: unit * 0.225
     )
-    let backgroundGradient = NSGradient(colors: [
-        NSColor(calibratedRed: 0.075, green: 0.13, blue: 0.30, alpha: 1),
-        NSColor(calibratedRed: 0.12, green: 0.24, blue: 0.53, alpha: 1),
-        NSColor(calibratedRed: 0.28, green: 0.22, blue: 0.62, alpha: 1)
-    ])!
-    backgroundGradient.draw(in: backgroundPath, angle: -42)
+    NSColor(calibratedRed: 0.95, green: 0.96, blue: 0.99, alpha: 1).setFill()
+    backgroundPath.fill()
 
-    // Subtle top highlight gives the icon depth without relying on tiny details.
-    let highlight = NSBezierPath(
-        roundedRect: NSRect(x: unit * 0.08, y: unit * 0.53, width: unit * 0.84, height: unit * 0.34),
-        xRadius: unit * 0.16,
-        yRadius: unit * 0.16
-    )
-    NSColor.white.withAlphaComponent(0.075).setFill()
-    highlight.fill()
+    let laneColor = NSColor(calibratedRed: 0.16, green: 0.20, blue: 0.31, alpha: 1)
+    let laneY = unit * 0.22
+    let laneHeight = unit * 0.56
+    let laneWidth = unit * 0.17
+    let laneGap = unit * 0.075
+    let lanesWidth = laneWidth * 3 + laneGap * 2
+    let laneStartX = (unit - lanesWidth) / 2
+    let laneRadius = unit * 0.065
 
-    let outerPadding = unit * 0.16
-    let columnGap = unit * 0.045
-    let columnWidth = (unit - outerPadding * 2 - columnGap * 2) / 3
-    let columnY = unit * 0.22
-    let columnHeight = unit * 0.56
-    let columnRadius = unit * 0.055
-
-    let statusColors = [
-        NSColor(calibratedRed: 0.28, green: 0.72, blue: 1.0, alpha: 1),
-        NSColor(calibratedRed: 1.0, green: 0.62, blue: 0.24, alpha: 1),
-        NSColor(calibratedRed: 0.28, green: 0.88, blue: 0.62, alpha: 1)
-    ]
-
-    for column in 0..<3 {
-        let x = outerPadding + CGFloat(column) * (columnWidth + columnGap)
-        let columnRect = NSRect(x: x, y: columnY, width: columnWidth, height: columnHeight)
-        let columnPath = NSBezierPath(roundedRect: columnRect, xRadius: columnRadius, yRadius: columnRadius)
-        NSColor.white.withAlphaComponent(0.13).setFill()
-        columnPath.fill()
-        NSColor.white.withAlphaComponent(0.22).setStroke()
-        columnPath.lineWidth = max(0.6, unit * 0.004)
-        columnPath.stroke()
-
-        let dotSize = unit * 0.035
-        let dotRect = NSRect(x: x + unit * 0.035, y: columnY + columnHeight - unit * 0.095, width: dotSize, height: dotSize)
-        let dot = NSBezierPath(ovalIn: dotRect)
-        statusColors[column].setFill()
-        dot.fill()
-
-        let lineX = x + unit * 0.035
-        let lineWidth = columnWidth - unit * 0.07
-        let lineHeight = max(1, unit * 0.018)
-        for line in 0..<2 {
-            let lineY = columnY + columnHeight - unit * (0.16 + CGFloat(line) * 0.055)
-            let lineRect = NSRect(x: lineX, y: lineY, width: lineWidth * (line == 1 ? 0.68 : 1), height: lineHeight)
-            let linePath = NSBezierPath(roundedRect: lineRect, xRadius: lineHeight / 2, yRadius: lineHeight / 2)
-            NSColor.white.withAlphaComponent(0.55).setFill()
-            linePath.fill()
-        }
-    }
-
-    // One clear foreground task card creates a recognizable focal point at small sizes.
-    let cardRect = NSRect(x: unit * 0.28, y: unit * 0.27, width: unit * 0.44, height: unit * 0.25)
-    let shadow = NSShadow()
-    shadow.shadowColor = NSColor.black.withAlphaComponent(0.32)
-    shadow.shadowBlurRadius = unit * 0.025
-    shadow.shadowOffset = NSSize(width: 0, height: -unit * 0.012)
-    shadow.set()
-    let foregroundCard = NSBezierPath(roundedRect: cardRect, xRadius: unit * 0.045, yRadius: unit * 0.045)
-    NSColor(calibratedRed: 0.97, green: 0.98, blue: 1.0, alpha: 1).setFill()
-    foregroundCard.fill()
-    NSShadow().set()
-
-    let accentRect = NSRect(x: cardRect.minX + unit * 0.045, y: cardRect.maxY - unit * 0.085, width: unit * 0.075, height: unit * 0.026)
-    let accentPath = NSBezierPath(roundedRect: accentRect, xRadius: unit * 0.013, yRadius: unit * 0.013)
-    NSColor(calibratedRed: 0.20, green: 0.46, blue: 1.0, alpha: 1).setFill()
-    accentPath.fill()
-
-    for line in 0..<2 {
-        let lineRect = NSRect(
-            x: cardRect.minX + unit * 0.045,
-            y: cardRect.minY + unit * (0.075 + CGFloat(line) * 0.045),
-            width: unit * (line == 0 ? 0.30 : 0.22),
-            height: max(1, unit * 0.014)
+    for index in 0..<3 {
+        let x = laneStartX + CGFloat(index) * (laneWidth + laneGap)
+        let lane = NSBezierPath(
+            roundedRect: NSRect(x: x, y: laneY, width: laneWidth, height: laneHeight),
+            xRadius: laneRadius,
+            yRadius: laneRadius
         )
-        let linePath = NSBezierPath(roundedRect: lineRect, xRadius: unit * 0.007, yRadius: unit * 0.007)
-        NSColor(calibratedWhite: 0.60, alpha: 1).setFill()
-        linePath.fill()
+        laneColor.setFill()
+        lane.fill()
     }
 
+    // A single floating task is the only accent and focal point.
+    let cardRect = NSRect(x: unit * 0.29, y: unit * 0.39, width: unit * 0.42, height: unit * 0.23)
+    let card = NSBezierPath(
+        roundedRect: cardRect,
+        xRadius: unit * 0.055,
+        yRadius: unit * 0.055
+    )
+    NSColor(calibratedRed: 0.20, green: 0.43, blue: 0.98, alpha: 1).setFill()
+    card.fill()
     context.flushGraphics()
     NSGraphicsContext.restoreGraphicsState()
 
