@@ -151,7 +151,20 @@ struct RootView: View {
             if let board = selectedBoard {
                 boardWorkspace(board)
             } else {
-                ContentUnavailableView("Создай первую доску", systemImage: "rectangle.split.3x1", description: Text("Jungo хранит задачи локально на этом Mac."))
+                VStack(spacing: 14) {
+                    ContentUnavailableView(
+                        "Создай первую доску",
+                        systemImage: "rectangle.split.3x1",
+                        description: Text("Jungo хранит задачи локально на этом Mac.")
+                    )
+                    Button("Создать первую доску", systemImage: "plus") {
+                        editingBoardID = nil
+                        nameInput = ""
+                        isNamingBoard = true
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .navigationSplitViewStyle(.balanced)
@@ -252,7 +265,7 @@ struct RootView: View {
                 }
             }
             if !archivedBoards.isEmpty {
-                Section("Архив") {
+                Section("Архив · \\(archivedBoards.count)") {
                     ForEach(archivedBoards) { board in
                         Label(board.title, systemImage: "archivebox")
                             .tag(board.id)
@@ -349,7 +362,16 @@ struct RootView: View {
             if showTrash {
                 trashWorkspace(for: board)
             } else if visibleColumns.isEmpty {
-                ContentUnavailableView("Пока нет колонок", systemImage: "rectangle.split.3x1")
+                VStack(spacing: 12) {
+                    ContentUnavailableView(
+                        "Пока нет колонок",
+                        systemImage: "rectangle.split.3x1",
+                        description: Text("Добавь колонку, чтобы начать раскладывать задачи.")
+                    )
+                    Button("Добавить колонку", systemImage: "plus", action: beginAddColumn)
+                        .buttonStyle(.borderedProminent)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView(.horizontal) {
                     HStack(alignment: .top, spacing: 14) {
@@ -476,6 +498,7 @@ struct RootView: View {
 
     private func columnView(_ column: BoardColumn) -> some View {
         let columnTasks = tasks(in: column)
+        let hasTasksBeforeFilters = allTasks.contains { $0.columnID == column.id && !$0.isInTrash }
         return VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Circle().fill(columnColor(column.sortOrder)).frame(width: 8, height: 8)
@@ -501,6 +524,31 @@ struct RootView: View {
                     Image(systemName: "ellipsis").foregroundStyle(.secondary).frame(width: 24, height: 24)
                 }
                 .menuStyle(.borderlessButton)
+            }
+            if columnTasks.isEmpty {
+                VStack(spacing: 9) {
+                    Image(systemName: hasTasksBeforeFilters && hasActiveFilters ? "line.3.horizontal.decrease.circle" : "tray")
+                        .font(.title2)
+                    Text(hasTasksBeforeFilters && hasActiveFilters ? "Нет совпадений" : "Пока нет задач")
+                        .font(.subheadline.weight(.medium))
+                    Text(hasTasksBeforeFilters && hasActiveFilters
+                         ? "Измени условия или сбрось фильтры."
+                         : "Добавь первую задачу в эту колонку.")
+                        .font(.caption)
+                        .multilineTextAlignment(.center)
+                    if hasTasksBeforeFilters && hasActiveFilters {
+                        Button("Сбросить фильтры", action: clearFilters)
+                            .buttonStyle(.bordered)
+                    } else {
+                        Button("Создать первую задачу", systemImage: "plus") {
+                            createTask(in: column)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
             }
             ForEach(columnTasks) { task in
                 Button {
