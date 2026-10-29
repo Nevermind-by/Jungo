@@ -37,7 +37,7 @@ final class TaskCard {
     @Attribute(.unique) var id: UUID
     var title: String
     var details: String
-    var labelsText: String
+    var labelsText: String = ""
     var priorityRawValue: String
     var sortOrder: Int
     var columnID: UUID
