@@ -8,6 +8,7 @@ struct RootView: View {
     @Query(sort: \Board.sortOrder) private var boards: [Board]
     @Query(sort: \BoardColumn.sortOrder) private var allColumns: [BoardColumn]
     @Query(sort: \TaskCard.sortOrder) private var allTasks: [TaskCard]
+    @Query(sort: \TaskChecklistItem.sortOrder) private var allChecklistItems: [TaskChecklistItem]
 
     @AppStorage("jungo.selectedBoardID") private var persistedSelectedBoardID = ""
     @State private var selectedBoardID: UUID?
@@ -250,7 +251,7 @@ struct RootView: View {
                 .menuStyle(.borderlessButton)
             }
             ForEach(columnTasks) { task in
-                TaskCardView(task: task)
+                TaskCardView(task: task, checklistItems: allChecklistItems.filter { $0.taskID == task.id }.sorted { $0.sortOrder < $1.sortOrder })
                     .onTapGesture { selectedTask = task }
                     .draggable(task.id.uuidString)
                     .dropDestination(for: String.self) { identifiers, _ in
@@ -384,6 +385,7 @@ struct RootView: View {
         defer { taskPendingDeletionID = nil }
         guard let id = taskPendingDeletionID, let task = allTasks.first(where: { $0.id == id }) else { return }
         let columnID = task.columnID
+        for item in allChecklistItems where item.taskID == id { modelContext.delete(item) }
         modelContext.delete(task)
         let remaining = allTasks.filter { $0.columnID == columnID && $0.id != id }.sorted { $0.sortOrder < $1.sortOrder }
         for (index, item) in remaining.enumerated() { item.sortOrder = index }
@@ -411,7 +413,9 @@ struct RootView: View {
     private func deleteSelectedBoard() {
         guard let board = selectedBoard else { return }
         let columns = allColumns.filter { $0.boardID == board.id }
-        for task in allTasks where columns.contains(where: { $0.id == task.columnID }) { modelContext.delete(task) }
+        let taskIDs = Set(allTasks.filter { task in columns.contains(where: { $0.id == task.columnID }) }.map(\.id))
+        for item in allChecklistItems where taskIDs.contains(item.taskID) { modelContext.delete(item) }
+        for task in allTasks where taskIDs.contains(task.id) { modelContext.delete(task) }
         for column in columns { modelContext.delete(column) }
         modelContext.delete(board)
         selectedBoardID = boards.first(where: { $0.id != board.id })?.id
@@ -459,7 +463,7 @@ struct RootView: View {
         panel.title = "Экспортировать данные Jungo"
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
-            let archive = JungoArchive.capture(boards: boards, columns: allColumns, tasks: allTasks)
+            let archive = JungoArchive.capture(boards: boards, columns: allColumns, tasks: allTasks, checklistItems: allChecklistItems)
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             encoder.dateEncodingStrategy = .iso8601
@@ -500,6 +504,7 @@ struct RootView: View {
 
 private struct TaskCardView: View {
     let task: TaskCard
+    let checklistItems: [TaskChecklistItem]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -508,6 +513,18 @@ private struct TaskCardView: View {
             if !task.details.isEmpty {
                 Text(task.details).font(.caption).foregroundStyle(.secondary).lineLimit(3)
                     .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            if !task.labels.isEmpty {
+                HStack(spacing: 5) {
+                    ForEach(task.labels, id: \.self) { label in
+                        Text(label).font(.caption2).padding(.horizontal, 7).padding(.vertical, 3)
+                            .background(.quaternary, in: Capsule())
+                    }
+                }
+            }
+            if !checklistItems.isEmpty {
+                Label("\(checklistItems.filter(\.isCompleted).count)/\(checklistItems.count)", systemImage: "checklist")
+                    .font(.caption2).foregroundStyle(.secondary)
             }
             HStack {
                 Label(task.priority.title, systemImage: task.priority.symbol)
@@ -538,14 +555,21 @@ private struct TaskCardView: View {
 private struct TaskEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Query(sort: \TaskChecklistItem.sortOrder) private var allChecklistItems: [TaskChecklistItem]
     @Bindable var task: TaskCard
     let onSave: () -> Bool
     @State private var hasDueDate = false
+    @State private var newChecklistTitle = ""
+
+    private var checklistItems: [TaskChecklistItem] {
+        allChecklistItems.filter { $0.taskID == task.id }.sorted { $0.sortOrder < $1.sortOrder }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             Text("Задача").font(.title2.bold())
             TextField("Название", text: $task.title).textFieldStyle(.roundedBorder).font(.title3)
+            TextField("Метки через запятую", text: $task.labelsText).textFieldStyle(.roundedBorder)
             VStack(alignment: .leading, spacing: 6) {
                 Text("Описание").font(.subheadline.weight(.medium))
                 TextEditor(text: $task.details).frame(minHeight: 120).padding(4)
@@ -560,6 +584,23 @@ private struct TaskEditorSheet: View {
             if hasDueDate {
                 DatePicker("Срок", selection: Binding(get: { task.dueDate ?? .now }, set: { task.dueDate = $0 }), displayedComponents: .date)
             }
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Чек-лист").font(.subheadline.weight(.semibold))
+                    Spacer()
+                    Text("\(checklistItems.filter(\.isCompleted).count)/\(checklistItems.count)")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                ForEach(checklistItems) { item in
+                    ChecklistItemRow(item: item, onSave: onSave)
+                }
+                HStack {
+                    TextField("Новый пункт", text: $newChecklistTitle)
+                        .textFieldStyle(.roundedBorder)
+                    Button("Добавить", systemImage: "plus", action: addChecklistItem)
+                        .disabled(newChecklistTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
             HStack {
                 Spacer()
                 Button("Отмена", role: .cancel) { dismiss() }
@@ -572,5 +613,37 @@ private struct TaskEditorSheet: View {
         .padding(24)
         .frame(width: 460)
         .onAppear { hasDueDate = task.dueDate != nil }
+    }
+
+    private func addChecklistItem() {
+        let title = newChecklistTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else { return }
+        modelContext.insert(TaskChecklistItem(title: title, sortOrder: checklistItems.count, taskID: task.id))
+        newChecklistTitle = ""
+        _ = onSave()
+    }
+}
+
+private struct ChecklistItemRow: View {
+    @Environment(\.modelContext) private var modelContext
+    @Bindable var item: TaskChecklistItem
+    let onSave: () -> Bool
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Toggle(isOn: $item.isCompleted) {
+                Text(item.title).strikethrough(item.isCompleted).foregroundStyle(item.isCompleted ? .secondary : .primary)
+            }
+            .toggleStyle(.checkbox)
+            Button(role: .destructive) {
+                modelContext.delete(item)
+                _ = onSave()
+            } label: {
+                Image(systemName: "xmark.circle").foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("Удалить пункт")
+        }
+        .onChange(of: item.isCompleted) { _, _ in _ = onSave() }
     }
 }
