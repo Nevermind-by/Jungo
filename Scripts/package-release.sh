@@ -3,7 +3,8 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_PATH="${1:-$ROOT_DIR/dist/Jungo.app}"
-OUTPUT_ZIP="${2:-$ROOT_DIR/dist/Jungo-macOS.zip}"
+APP_VERSION="${JUNGO_VERSION:-0.1.0}"
+OUTPUT_ZIP="${2:-$ROOT_DIR/dist/Jungo-$APP_VERSION-macOS.zip}"
 DEVELOPER_ID="${DEVELOPER_ID:-}"
 NOTARY_PROFILE="${NOTARY_PROFILE:-}"
 
