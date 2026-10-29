@@ -1188,8 +1188,9 @@ private struct TaskEditorSheet: View {
                 .keyboardShortcut(.defaultAction).buttonStyle(.borderedProminent)
             }
         }
-        .padding(24)
-        .frame(width: 460)
+        .padding(26)
+        .frame(width: 480)
+        .background(JungoCanvasBackground())
         .onAppear { hasDueDate = task.dueDate != nil }
     }
 
