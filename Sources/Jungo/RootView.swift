@@ -303,15 +303,49 @@ struct RootView: View {
                     nameInput = ""
                     isNamingBoard = true
                 } label: {
-                    Label("Новая доска", systemImage: "plus").frame(maxWidth: .infinity, alignment: .leading)
+                    Label("Новая доска", systemImage: "plus")
+                        .font(.body.weight(.medium))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                HStack(spacing: 8) {
-                    Button(action: exportArchive) { Label("Экспорт", systemImage: "square.and.arrow.up") }
-                    Button(action: importArchive) { Label("Импорт", systemImage: "square.and.arrow.down") }
+                .lineLimit(1)
+                .padding(.bottom, 2)
+
+                HStack(alignment: .center, spacing: 10) {
+                    Button(action: exportArchive) {
+                        Label {
+                            Text("Экспорт")
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                                .fixedSize(horizontal: false, vertical: true)
+                        } icon: {
+                            Image(systemName: "square.and.arrow.up")
+                                .frame(width: 15)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .contentShape(Rectangle())
+                    }
+                    .help("Экспортировать резервную копию")
+
+                    Button(action: importArchive) {
+                        Label {
+                            Text("Импорт")
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                                .fixedSize(horizontal: false, vertical: true)
+                        } icon: {
+                            Image(systemName: "square.and.arrow.down")
+                                .frame(width: 15)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .contentShape(Rectangle())
+                    }
+                    .help("Импортировать архив")
                 }
                 .buttonStyle(.borderless)
-                .font(.caption)
+                .font(.system(size: 11, weight: .medium))
+                .controlSize(.small)
             }
             .padding(14)
             .background(.regularMaterial)
