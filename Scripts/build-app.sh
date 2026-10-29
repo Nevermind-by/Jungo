@@ -27,14 +27,25 @@ if [[ -L "$APP_PATH" ]]; then
   exit 2
 fi
 if [[ -e "$APP_PATH" ]]; then
-  if [[ ! -d "$APP_PATH" || ! -f "$APP_PATH/Contents/Info.plist" ]]; then
-    echo "Refusing to replace a path that is not an app bundle: $APP_PATH" >&2
+  # Allow recovery from an interrupted/older Jungo packaging attempt only when
+  # the target is clearly inside this repository's dist directory. For any
+  # custom destination, keep the strict bundle-identity guard.
+  if [[ ! -d "$APP_PATH" ]]; then
+    echo "Refusing to replace a path that is not an app bundle directory: $APP_PATH" >&2
     exit 2
   fi
-  EXISTING_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PATH/Contents/Info.plist" 2>/dev/null || true)"
-  if [[ "$EXISTING_BUNDLE_ID" != "com.nevermind.jungo" ]]; then
-    echo "Refusing to replace an app with unexpected bundle identifier: ${EXISTING_BUNDLE_ID:-<missing>}" >&2
+
+  if [[ -f "$APP_PATH/Contents/Info.plist" ]]; then
+    EXISTING_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PATH/Contents/Info.plist" 2>/dev/null || true)"
+    if [[ "$EXISTING_BUNDLE_ID" != "com.nevermind.jungo" ]]; then
+      echo "Refusing to replace an app with unexpected bundle identifier: ${EXISTING_BUNDLE_ID:-<missing>}" >&2
+      exit 2
+    fi
+  elif [[ "$APP_PATH" != "$ROOT_DIR/dist/Jungo.app" ]]; then
+    echo "Refusing to replace a path without an app bundle Info.plist: $APP_PATH" >&2
     exit 2
+  else
+    echo "Recovering incomplete Jungo bundle at the default dist path."
   fi
 fi
 CONTENTS="$APP_PATH/Contents"
