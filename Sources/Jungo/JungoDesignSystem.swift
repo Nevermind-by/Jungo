@@ -10,22 +10,26 @@ enum JungoDesign {
 }
 
 struct JungoCanvasBackground: View {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
     var body: some View {
         GeometryReader { proxy in
             ZStack {
                 Color(nsColor: .windowBackgroundColor)
 
-                Circle()
-                    .fill(Color.accentColor.opacity(0.10))
-                    .frame(width: 440, height: 440)
-                    .blur(radius: 100)
-                    .position(x: proxy.size.width * 0.88, y: proxy.size.height * 0.08)
+                if !reduceTransparency {
+                    Circle()
+                        .fill(Color.accentColor.opacity(0.10))
+                        .frame(width: 440, height: 440)
+                        .blur(radius: 100)
+                        .position(x: proxy.size.width * 0.88, y: proxy.size.height * 0.08)
 
-                Circle()
-                    .fill(Color.purple.opacity(0.055))
-                    .frame(width: 360, height: 360)
-                    .blur(radius: 100)
-                    .position(x: proxy.size.width * 0.12, y: proxy.size.height * 0.92)
+                    Circle()
+                        .fill(Color.purple.opacity(0.055))
+                        .frame(width: 360, height: 360)
+                        .blur(radius: 100)
+                        .position(x: proxy.size.width * 0.12, y: proxy.size.height * 0.92)
+                }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
             .clipped()
@@ -36,6 +40,7 @@ struct JungoCanvasBackground: View {
 }
 
 struct JungoGlassPanel: ViewModifier {
+    @Environment(\.accessibilityShowBorders) private var showBorders
     var radius: CGFloat = JungoDesign.panelRadius
 
     func body(content: Content) -> some View {
@@ -43,12 +48,13 @@ struct JungoGlassPanel: ViewModifier {
             .glassEffect(.regular, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .strokeBorder(.white.opacity(0.16), lineWidth: 1)
+                    .strokeBorder(Color.primary.opacity(showBorders ? 0.65 : 0.10), lineWidth: showBorders ? 1.5 : 1)
             }
     }
 }
 
 struct JungoTaskSurface: ViewModifier {
+    @Environment(\.accessibilityShowBorders) private var showBorders
     var radius: CGFloat = JungoDesign.cardRadius
 
     func body(content: Content) -> some View {
@@ -59,7 +65,7 @@ struct JungoTaskSurface: ViewModifier {
             }
             .overlay {
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.07), lineWidth: 1)
+                    .strokeBorder(Color.primary.opacity(showBorders ? 0.65 : 0.07), lineWidth: showBorders ? 1.5 : 1)
             }
     }
 }
