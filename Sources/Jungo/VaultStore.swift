@@ -102,8 +102,20 @@ enum VaultStore {
         if targetURL.standardizedFileURL == currentStoreURL.standardizedFileURL {
             return targetURL
         }
-        guard !fileManager.fileExists(atPath: targetURL.path) else {
-            throw VaultError.destinationAlreadyExists(targetURL)
+        // A SwiftData/SQLite store can have sidecar files even when the main
+        // database file is absent (for example after an interrupted cleanup).
+        // Treat any existing artifact as occupied so a failed attempt never
+        // removes data that was already present in the destination folder.
+        let destinationArtifacts = [
+            targetURL,
+            URL(fileURLWithPath: targetURL.path + "-wal"),
+            URL(fileURLWithPath: targetURL.path + "-shm"),
+            URL(fileURLWithPath: targetURL.path + "-journal")
+        ]
+        if let existingArtifact = destinationArtifacts.first(where: {
+            fileManager.fileExists(atPath: $0.path)
+        }) {
+            throw VaultError.destinationAlreadyExists(existingArtifact)
         }
 
         // Create the bookmark before touching data, but do not activate it until
