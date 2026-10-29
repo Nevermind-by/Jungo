@@ -992,6 +992,7 @@ struct RootView: View {
             try modelContext.save()
             return true
         } catch {
+            modelContext.rollback()
             errorMessage = "Не удалось сохранить изменения: \(error.localizedDescription)"
             return false
         }
@@ -1029,8 +1030,10 @@ struct RootView: View {
             let previousUndoManager = modelContext.undoManager
             modelContext.undoManager = nil
             defer { modelContext.undoManager = previousUndoManager }
-            try archive.importInto(modelContext)
-            selectedBoardID = boards.sorted(by: { $0.sortOrder < $1.sortOrder }).last?.id
+            let importedBoardID = try archive.importInto(modelContext)
+            if let importedBoardID {
+                selectedBoardID = importedBoardID
+            }
             statusMessage = "Импортировано досок: \(archive.boards.count). Существующие данные не заменялись."
         } catch {
             modelContext.rollback()
