@@ -14,7 +14,7 @@
     Scripts/build-app.sh
     Scripts/run-app.sh
 
-Scripts/build-app.sh генерирует иконку, собирает release executable и создаёт development bundle с ad-hoc подписью. Это локальная сборка, не notarized-релиз. Версия по умолчанию — 0.1.0, build number — 1. Их можно переопределить через `JUNGO_VERSION` и `JUNGO_BUILD_NUMBER`; версия должна быть в формате MAJOR.MINOR.PATCH, номер сборки — положительным целым числом.
+Scripts/build-app.sh генерирует иконку, собирает release executable и создаёт development bundle с ad-hoc подписью. Это локальная сборка, не notarized-релиз. Скрипт отказывается перезаписывать symlink, произвольную папку или чужой .app bundle: существующее приложение должно иметь bundle identifier `com.nevermind.jungo`. Перед сборкой убедись, что указанный путь предназначен именно для Jungo. Версия по умолчанию — 0.1.0, build number — 1. Их можно переопределить через `JUNGO_VERSION` и `JUNGO_BUILD_NUMBER`; версия должна быть в формате MAJOR.MINOR.PATCH, номер сборки — положительным целым числом.
 
 Пример сборки с другой версией:
 
