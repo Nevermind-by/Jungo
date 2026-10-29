@@ -218,7 +218,7 @@ enum VaultStore {
             targetContext.insert(BoardColumn(id: item.id, title: item.title, sortOrder: item.sortOrder, boardID: item.boardID))
         }
         for item in tasks {
-            targetContext.insert(TaskCard(
+            let copiedTask = TaskCard(
                 id: item.id,
                 title: item.title,
                 details: item.details,
@@ -229,7 +229,11 @@ enum VaultStore {
                 createdAt: item.createdAt,
                 dueDate: item.dueDate,
                 isInTrash: item.isInTrash
-            ))
+            )
+            // Preserve the stored raw value exactly, including values introduced by
+            // a newer app version. The computed enum may map unknown values to .normal.
+            copiedTask.priorityRawValue = item.priorityRawValue
+            targetContext.insert(copiedTask)
         }
         for item in checklistItems {
             targetContext.insert(TaskChecklistItem(
