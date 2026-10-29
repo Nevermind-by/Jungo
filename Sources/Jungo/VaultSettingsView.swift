@@ -57,6 +57,7 @@ struct VaultSettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
         .frame(width: 620, height: 400)
         .padding(.top, 8)
         .background(JungoCanvasBackground())
