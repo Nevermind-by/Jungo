@@ -61,7 +61,7 @@ final class GlobalHotKeyManager {
     }
 
     private func openQuickCapture() {
-        if let window = NSApp.windows.first(where: \.isVisible) {
+        if let window = NSApp.windows.first(where: { $0.isVisible }) {
             NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil)
             NotificationCenter.default.post(name: .jungoQuickAddTask, object: nil)
