@@ -2,6 +2,7 @@ import AppKit
 import Carbon
 
 /// Registers a system-wide shortcut without Accessibility permissions or third-party packages.
+@MainActor
 final class GlobalHotKeyManager {
     static let shared = GlobalHotKeyManager()
 
@@ -52,9 +53,7 @@ final class GlobalHotKeyManager {
     }
 
     func requestQuickCapture() {
-        DispatchQueue.main.async { [weak self] in
-            self?.openQuickCapture()
-        }
+        openQuickCapture()
     }
 
     fileprivate func handleHotKeyEvent() {
@@ -96,6 +95,8 @@ private func jungoHotKeyHandler(
         return noErr
     }
 
-    GlobalHotKeyManager.shared.handleHotKeyEvent()
+    Task { @MainActor in
+        GlobalHotKeyManager.shared.handleHotKeyEvent()
+    }
     return noErr
 }
