@@ -474,7 +474,7 @@ struct RootView: View {
                     Button("Импортировать данные…", action: importArchive)
                     Divider()
                     Button("Удалить доску…", role: .destructive) { showDeleteBoardConfirmation = true }
-                } label: { Image(systemName: "ellipsis.circle") }
+                } label: { Image(systemName: "ellipsis.circle").accessibilityLabel("Действия с доской") }
             }
         }
         .alert("Название колонки", isPresented: $isNamingColumn) {
@@ -494,6 +494,20 @@ struct RootView: View {
         }
         .buttonStyle(.plain)
         .frame(width: 220)
+    }
+
+    private func taskAccessibilitySummary(for task: TaskCard) -> String {
+        let taskChecklist = allChecklistItems.filter { $0.taskID == task.id }
+        let checklistSummary = taskChecklist.isEmpty
+            ? ""
+            : ", чек-лист: \(taskChecklist.filter(\.isCompleted).count) из \(taskChecklist.count) выполнено"
+        let labelsSummary = task.labels.isEmpty
+            ? ""
+            : ", метки: \(task.labels.joined(separator: ", "))"
+        let dueDateSummary = task.dueDate.map {
+            ", срок: \($0.formatted(date: .abbreviated, time: .omitted))"
+        } ?? ""
+        return "Задача: \(task.title), приоритет: \(task.priority.title)\(dueDateSummary)\(labelsSummary)\(checklistSummary)"
     }
 
     private func columnView(_ column: BoardColumn) -> some View {
@@ -521,7 +535,10 @@ struct RootView: View {
                     Button("Удалить колонку…", role: .destructive) { columnPendingDeletionID = column.id }
                         .disabled(visibleColumns.count <= 1)
                 } label: {
-                    Image(systemName: "ellipsis").foregroundStyle(.secondary).frame(width: 24, height: 24)
+                    Image(systemName: "ellipsis")
+                        .foregroundStyle(.secondary)
+                        .frame(width: 24, height: 24)
+                        .accessibilityLabel("Действия с колонкой \(column.title)")
                 }
                 .menuStyle(.borderlessButton)
             }
@@ -557,7 +574,7 @@ struct RootView: View {
                     TaskCardView(task: task, checklistItems: allChecklistItems.filter { $0.taskID == task.id }.sorted { $0.sortOrder < $1.sortOrder })
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Задача: \(task.title), приоритет: \(task.priority.title)")
+                .accessibilityLabel(taskAccessibilitySummary(for: task))
                 .draggable(task.id.uuidString)
                     .dropDestination(for: String.self) { identifiers, _ in
                         guard let rawID = identifiers.first, let draggedID = UUID(uuidString: rawID) else { return false }
