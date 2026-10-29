@@ -37,6 +37,15 @@ enum VaultStore {
 
     static var currentFolderURL: URL {
         if let url = resolveSelectedFolder() { return url }
+        // Keep showing the configured location when a bookmark cannot currently
+        // resolve (for example, while an external drive is disconnected). Container
+        // creation still requires a successfully resolved bookmark and never falls
+        // back to the default store.
+        if UserDefaults.standard.data(forKey: bookmarkDefaultsKey) != nil,
+           let savedPath = UserDefaults.standard.string(forKey: pathDefaultsKey),
+           !savedPath.isEmpty {
+            return URL(fileURLWithPath: savedPath, isDirectory: true)
+        }
         return defaultFolderURL
     }
 
