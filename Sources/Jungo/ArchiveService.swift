@@ -59,20 +59,22 @@ struct JungoArchive: Codable {
     }
 
     func validate() throws {
-        guard formatVersion == 1 else { throw ArchiveError.unsupportedVersion(formatVersion) }
-        let boardIDs = Set(boards.map(\.id))
-        let columnIDs = Set(columns.map(\.id))
-        guard boardIDs.count == boards.count, columnIDs.count == columns.count,
-              Set(tasks.map(\.id)).count == tasks.count,
-              Set((checklistItems ?? []).map(\.id)).count == (checklistItems ?? []).count else { throw ArchiveError.duplicateIdentifiers }
-        let taskIDs = Set(tasks.map(\.id))
-        guard columns.allSatisfy({ boardIDs.contains($0.boardID) }),
-              tasks.allSatisfy({ columnIDs.contains($0.columnID) }),
-              (checklistItems ?? []).allSatisfy({ taskIDs.contains($0.taskID) }) else { throw ArchiveError.brokenReferences }
-        guard boards.allSatisfy({ !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }),
-              columns.allSatisfy({ !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }),
-              tasks.allSatisfy({ !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }),
-              (checklistItems ?? []).allSatisfy({ !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) else { throw ArchiveError.emptyTitles }
+        do {
+            try ArchiveValidation.validate(
+                formatVersion: formatVersion,
+                boards: boards.map { .init(id: $0.id, title: $0.title) },
+                columns: columns.map { .init(id: $0.id, title: $0.title, boardID: $0.boardID) },
+                tasks: tasks.map { .init(id: $0.id, title: $0.title, columnID: $0.columnID) },
+                checklistItems: (checklistItems ?? []).map { .init(id: $0.id, title: $0.title, taskID: $0.taskID) }
+            )
+        } catch let validationError as ArchiveValidationError {
+            switch validationError {
+            case .unsupportedVersion(let version): throw ArchiveError.unsupportedVersion(version)
+            case .duplicateIdentifiers: throw ArchiveError.duplicateIdentifiers
+            case .brokenReferences: throw ArchiveError.brokenReferences
+            case .emptyTitles: throw ArchiveError.emptyTitles
+            }
+        }
     }
 
     /// Imports as additional boards to avoid silently replacing existing local data.
