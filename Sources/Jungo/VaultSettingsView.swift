@@ -57,8 +57,9 @@ struct VaultSettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 560, height: 360)
+        .frame(width: 620, height: 400)
         .padding(.top, 8)
+        .background(JungoCanvasBackground())
         .confirmationDialog(
             "Перенести хранилище Jungo?",
             isPresented: $showMoveConfirmation,
@@ -146,6 +147,7 @@ struct VaultUnavailableView: View {
         }
         .padding(36)
         .frame(minWidth: 620, minHeight: 360)
+        .background(JungoCanvasBackground())
         .alert("Не удалось восстановить доступ", isPresented: Binding(
             get: { recoveryError != nil },
             set: { if !$0 { recoveryError = nil } }
