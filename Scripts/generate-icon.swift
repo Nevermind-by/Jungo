@@ -6,9 +6,6 @@ let fileManager = FileManager.default
 let outputURL = URL(fileURLWithPath: outputPath)
 let iconsetURL = outputURL.deletingLastPathComponent().appendingPathComponent("Jungo.iconset", isDirectory: true)
 
-try? fileManager.removeItem(at: iconsetURL)
-try fileManager.createDirectory(at: iconsetURL, withIntermediateDirectories: true)
-
 func drawIcon(size: Int) throws -> Data {
     guard let bitmap = NSBitmapImageRep(
         bitmapDataPlanes: nil,
@@ -31,52 +28,100 @@ func drawIcon(size: Int) throws -> Data {
 
     let unit = CGFloat(size)
     let bounds = NSRect(x: 0, y: 0, width: unit, height: unit)
-    NSColor.clear.setFill()
-    bounds.fill()
-
     let inset = unit * 0.035
-    let background = NSBezierPath(roundedRect: bounds.insetBy(dx: inset, dy: inset), xRadius: unit * 0.23, yRadius: unit * 0.23)
-    let gradient = NSGradient(colors: [
-        NSColor(calibratedRed: 0.17, green: 0.38, blue: 0.96, alpha: 1),
-        NSColor(calibratedRed: 0.39, green: 0.24, blue: 0.86, alpha: 1)
-    ])!
-    gradient.draw(in: background, angle: -38)
+    let iconBounds = bounds.insetBy(dx: inset, dy: inset)
 
-    let cardTop = unit * 0.72
-    let cardHeight = unit * 0.43
-    let cardWidth = unit * 0.235
-    let gap = unit * 0.035
-    let startX = unit * 0.19
+    // Deep indigo-to-blue glass-like base, designed to remain distinct at Dock size.
+    let backgroundPath = NSBezierPath(
+        roundedRect: iconBounds,
+        xRadius: unit * 0.235,
+        yRadius: unit * 0.235
+    )
+    let backgroundGradient = NSGradient(colors: [
+        NSColor(calibratedRed: 0.075, green: 0.13, blue: 0.30, alpha: 1),
+        NSColor(calibratedRed: 0.12, green: 0.24, blue: 0.53, alpha: 1),
+        NSColor(calibratedRed: 0.28, green: 0.22, blue: 0.62, alpha: 1)
+    ])!
+    backgroundGradient.draw(in: backgroundPath, angle: -42)
+
+    // Subtle top highlight gives the icon depth without relying on tiny details.
+    let highlight = NSBezierPath(
+        roundedRect: NSRect(x: unit * 0.08, y: unit * 0.53, width: unit * 0.84, height: unit * 0.34),
+        xRadius: unit * 0.16,
+        yRadius: unit * 0.16
+    )
+    NSColor.white.withAlphaComponent(0.075).setFill()
+    highlight.fill()
+
+    let outerPadding = unit * 0.16
+    let columnGap = unit * 0.045
+    let columnWidth = (unit - outerPadding * 2 - columnGap * 2) / 3
+    let columnY = unit * 0.22
+    let columnHeight = unit * 0.56
+    let columnRadius = unit * 0.055
+
+    let statusColors = [
+        NSColor(calibratedRed: 0.28, green: 0.72, blue: 1.0, alpha: 1),
+        NSColor(calibratedRed: 1.0, green: 0.62, blue: 0.24, alpha: 1),
+        NSColor(calibratedRed: 0.28, green: 0.88, blue: 0.62, alpha: 1)
+    ]
 
     for column in 0..<3 {
-        let x = startX + CGFloat(column) * (cardWidth + gap)
-        let cardRect = NSRect(x: x, y: cardTop - cardHeight, width: cardWidth, height: cardHeight)
-        let shadow = NSShadow()
-        shadow.shadowColor = NSColor.black.withAlphaComponent(0.18)
-        shadow.shadowBlurRadius = unit * 0.018
-        shadow.shadowOffset = NSSize(width: 0, height: -unit * 0.008)
-        shadow.set()
-        let card = NSBezierPath(roundedRect: cardRect, xRadius: unit * 0.035, yRadius: unit * 0.035)
-        NSColor.white.withAlphaComponent(0.96).setFill()
-        card.fill()
-        NSShadow().set()
+        let x = outerPadding + CGFloat(column) * (columnWidth + columnGap)
+        let columnRect = NSRect(x: x, y: columnY, width: columnWidth, height: columnHeight)
+        let columnPath = NSBezierPath(roundedRect: columnRect, xRadius: columnRadius, yRadius: columnRadius)
+        NSColor.white.withAlphaComponent(0.13).setFill()
+        columnPath.fill()
+        NSColor.white.withAlphaComponent(0.22).setStroke()
+        columnPath.lineWidth = max(0.6, unit * 0.004)
+        columnPath.stroke()
+
+        let dotSize = unit * 0.035
+        let dotRect = NSRect(x: x + unit * 0.035, y: columnY + columnHeight - unit * 0.095, width: dotSize, height: dotSize)
+        let dot = NSBezierPath(ovalIn: dotRect)
+        statusColors[column].setFill()
+        dot.fill()
 
         let lineX = x + unit * 0.035
-        let lineWidth = cardWidth - unit * 0.07
+        let lineWidth = columnWidth - unit * 0.07
         let lineHeight = max(1, unit * 0.018)
-        for line in 0..<3 {
-            let lineY = cardRect.maxY - unit * (0.09 + CGFloat(line) * 0.065)
-            let lineRect = NSRect(x: lineX, y: lineY, width: lineWidth * (line == 2 ? 0.62 : 1), height: lineHeight)
+        for line in 0..<2 {
+            let lineY = columnY + columnHeight - unit * (0.16 + CGFloat(line) * 0.055)
+            let lineRect = NSRect(x: lineX, y: lineY, width: lineWidth * (line == 1 ? 0.68 : 1), height: lineHeight)
             let linePath = NSBezierPath(roundedRect: lineRect, xRadius: lineHeight / 2, yRadius: lineHeight / 2)
-            (line == 0 ? NSColor(calibratedRed: 0.25, green: 0.43, blue: 0.96, alpha: 0.9) : NSColor(calibratedWhite: 0.76, alpha: 1)).setFill()
+            NSColor.white.withAlphaComponent(0.55).setFill()
             linePath.fill()
         }
     }
 
-    let accentRect = NSRect(x: unit * 0.39, y: unit * 0.18, width: unit * 0.22, height: unit * 0.08)
-    let accent = NSBezierPath(roundedRect: accentRect, xRadius: unit * 0.04, yRadius: unit * 0.04)
-    NSColor.white.withAlphaComponent(0.92).setFill()
-    accent.fill()
+    // One clear foreground task card creates a recognizable focal point at small sizes.
+    let cardRect = NSRect(x: unit * 0.28, y: unit * 0.27, width: unit * 0.44, height: unit * 0.25)
+    let shadow = NSShadow()
+    shadow.shadowColor = NSColor.black.withAlphaComponent(0.32)
+    shadow.shadowBlurRadius = unit * 0.025
+    shadow.shadowOffset = NSSize(width: 0, height: -unit * 0.012)
+    shadow.set()
+    let foregroundCard = NSBezierPath(roundedRect: cardRect, xRadius: unit * 0.045, yRadius: unit * 0.045)
+    NSColor(calibratedRed: 0.97, green: 0.98, blue: 1.0, alpha: 1).setFill()
+    foregroundCard.fill()
+    NSShadow().set()
+
+    let accentRect = NSRect(x: cardRect.minX + unit * 0.045, y: cardRect.maxY - unit * 0.085, width: unit * 0.075, height: unit * 0.026)
+    let accentPath = NSBezierPath(roundedRect: accentRect, xRadius: unit * 0.013, yRadius: unit * 0.013)
+    NSColor(calibratedRed: 0.20, green: 0.46, blue: 1.0, alpha: 1).setFill()
+    accentPath.fill()
+
+    for line in 0..<2 {
+        let lineRect = NSRect(
+            x: cardRect.minX + unit * 0.045,
+            y: cardRect.minY + unit * (0.075 + CGFloat(line) * 0.045),
+            width: unit * (line == 0 ? 0.30 : 0.22),
+            height: max(1, unit * 0.014)
+        )
+        let linePath = NSBezierPath(roundedRect: lineRect, xRadius: unit * 0.007, yRadius: unit * 0.007)
+        NSColor(calibratedWhite: 0.60, alpha: 1).setFill()
+        linePath.fill()
+    }
 
     NSGraphicsContext.restoreGraphicsState()
 
