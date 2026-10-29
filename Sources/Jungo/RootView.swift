@@ -36,6 +36,7 @@ struct RootView: View {
     @FocusState private var isSearchFocused: Bool
     @State private var errorMessage: String?
     @State private var statusMessage: String?
+    @Namespace private var taskMoveNamespace
 
     private enum PriorityFilter: String, CaseIterable, Identifiable {
         case all, low, normal, high
@@ -398,10 +399,13 @@ struct RootView: View {
                     }
                     .toggleStyle(.button).help("Только просроченные задачи")
                     .accessibilityLabel("Только просроченные задачи")
-                    Button(action: { if let first = visibleColumns.first { createTask(in: first) } }) {
+                    Button {
+                        showQuickAdd = true
+                    } label: {
                         Label("Новая задача", systemImage: "plus")
                     }
                     .buttonStyle(.borderedProminent)
+                    .disabled(visibleColumns.isEmpty)
                 }
             }
             .padding(20)
@@ -428,7 +432,8 @@ struct RootView: View {
                             columnView(
                                 column,
                                 taskCandidates: taskCandidatesByColumn[column.id] ?? [],
-                                checklistItemsByTask: checklistItemsByTask
+                                checklistItemsByTask: checklistItemsByTask,
+                                taskMoveNamespace: taskMoveNamespace
                             )
                             .frame(width: 270)
                         }
@@ -573,7 +578,8 @@ struct RootView: View {
     private func columnView(
         _ column: BoardColumn,
         taskCandidates: [TaskCard],
-        checklistItemsByTask: [UUID: [TaskChecklistItem]]
+        checklistItemsByTask: [UUID: [TaskChecklistItem]],
+        taskMoveNamespace: Namespace.ID
     ) -> some View {
         let columnTasks = tasks(in: column, candidates: taskCandidates)
         let hasTasksBeforeFilters = taskCandidates.contains { !$0.isInTrash }
@@ -610,12 +616,9 @@ struct RootView: View {
                 VStack(spacing: 8) {
                     Image(systemName: hasTasksBeforeFilters && hasActiveFilters ? "line.3.horizontal.decrease.circle" : "tray")
                         .font(.title2)
-                    Text(hasTasksBeforeFilters && hasActiveFilters ? "Нет совпадений" : "Колонка пока пустая")
+                    Text(hasTasksBeforeFilters && hasActiveFilters ? "Нет совпадений" : "Пусто")
                         .font(.subheadline.weight(.medium))
                     if hasTasksBeforeFilters && hasActiveFilters {
-                        Text("Попробуй изменить условия поиска.")
-                            .font(.caption)
-                            .multilineTextAlignment(.center)
                         Button("Сбросить фильтры", action: clearFilters)
                             .buttonStyle(.bordered)
                     }
@@ -631,7 +634,11 @@ struct RootView: View {
                 Button {
                     selectedTask = task
                 } label: {
-                    TaskCardView(task: task, checklistItems: checklistItemsByTask[task.id] ?? [])
+                    TaskCardView(
+                        task: task,
+                        checklistItems: checklistItemsByTask[task.id] ?? [],
+                        moveNamespace: taskMoveNamespace
+                    )
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(taskAccessibilitySummary(for: task, checklistItems: checklistItemsByTask[task.id] ?? []))
@@ -659,22 +666,12 @@ struct RootView: View {
                         Button("Удалить…", role: .destructive) { taskPendingDeletionID = task.id }
                     }
             }
-            if !columnTasks.isEmpty {
-                Button { createTask(in: column) } label: {
-                    Label("Добавить задачу", systemImage: "plus")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(10)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
             Spacer(minLength: 0)
         }
         .padding(12)
         .frame(maxHeight: .infinity, alignment: .top)
         .jungoTaskSurface(radius: 20)
+        .animation(.snappy(duration: 0.28), value: columnTasks.map(\.id))
         .dropDestination(for: String.self) { identifiers, _ in
             guard let rawID = identifiers.first, let draggedID = UUID(uuidString: rawID) else { return false }
             moveTask(draggedID, to: column, before: nil)
@@ -1183,6 +1180,7 @@ struct RootView: View {
 private struct TaskCardView: View {
     let task: TaskCard
     let checklistItems: [TaskChecklistItem]
+    let moveNamespace: Namespace.ID
 
     private var isOverdue: Bool {
         task.dueDate.map { $0 < Calendar.current.startOfDay(for: .now) } ?? false
@@ -1252,6 +1250,7 @@ private struct TaskCardView: View {
             }
         }
         .contentShape(RoundedRectangle(cornerRadius: 14))
+        .matchedGeometryEffect(id: task.id, in: moveNamespace, properties: .frame)
     }
 }
 
