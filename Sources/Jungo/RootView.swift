@@ -330,7 +330,7 @@ struct RootView: View {
         let checklistItemsByTask = Dictionary(grouping: allChecklistItems, by: \.taskID)
             .mapValues { $0.sorted { $0.sortOrder < $1.sortOrder } }
 
-        VStack(alignment: .leading, spacing: 0) {
+        return VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center, spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(showTrash ? "Корзина" : board.title).font(.largeTitle.weight(.bold))
