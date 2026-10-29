@@ -14,6 +14,31 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
   exit 1
 fi
 
+# Never let a custom output path cause removal of an arbitrary directory or app.
+case "$APP_PATH" in
+  /*) ;;
+  *) APP_PATH="$ROOT_DIR/$APP_PATH" ;;
+esac
+if [[ "$APP_PATH" != *.app || "$APP_PATH" == "/" || "$APP_PATH" == "$HOME" || "$APP_PATH" == "$ROOT_DIR" ]]; then
+  echo "APP_PATH must point to a dedicated .app bundle path." >&2
+  exit 2
+fi
+if [[ -L "$APP_PATH" ]]; then
+  echo "Refusing to replace a symbolic link: $APP_PATH" >&2
+  exit 2
+fi
+if [[ -e "$APP_PATH" ]]; then
+  if [[ ! -d "$APP_PATH" || ! -f "$APP_PATH/Contents/Info.plist" ]]; then
+    echo "Refusing to replace a path that is not an app bundle: $APP_PATH" >&2
+    exit 2
+  fi
+  EXISTING_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PATH/Contents/Info.plist" 2>/dev/null || true)"
+  if [[ "$EXISTING_BUNDLE_ID" != "com.nevermind.jungo" ]]; then
+    echo "Refusing to replace an app with unexpected bundle identifier: ${EXISTING_BUNDLE_ID:-<missing>}" >&2
+    exit 2
+  fi
+fi
+
 if [[ ! "$APP_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   echo "JUNGO_VERSION must use MAJOR.MINOR.PATCH format (for example 1.0.0)." >&2
   exit 2
