@@ -79,6 +79,10 @@ enum VaultStore {
     @discardableResult
     static func moveVault(from sourceContext: ModelContext, to folderURL: URL) throws -> URL {
         let folder = folderURL.standardizedFileURL
+        let didStartAccess = folderURL.startAccessingSecurityScopedResource()
+        defer {
+            if didStartAccess { folderURL.stopAccessingSecurityScopedResource() }
+        }
         let fileManager = FileManager.default
         guard fileManager.fileExists(atPath: folder.path) else {
             throw VaultError.selectedFolderUnavailable
@@ -101,6 +105,7 @@ enum VaultStore {
             try copyAndVerify(sourceContext: sourceContext, targetURL: targetURL)
             UserDefaults.standard.set(bookmark, forKey: bookmarkDefaultsKey)
             UserDefaults.standard.set(folder.path, forKey: pathDefaultsKey)
+            _ = resolveSelectedFolder()
             return targetURL
         } catch {
             // The destination did not exist before this operation, so remove only
@@ -117,12 +122,25 @@ enum VaultStore {
     private static func resolveSelectedFolder() -> URL? {
         guard let data = UserDefaults.standard.data(forKey: bookmarkDefaultsKey) else { return nil }
         var stale = false
-        guard let url = try? URL(
+        let url: URL
+        if let scopedURL = try? URL(
             resolvingBookmarkData: data,
             options: [.withSecurityScope],
             relativeTo: nil,
             bookmarkDataIsStale: &stale
-        ) else { return nil }
+        ) {
+            url = scopedURL
+        } else {
+            // Bookmarks created by a non-sandboxed build may be ordinary bookmarks.
+            stale = false
+            guard let ordinaryURL = try? URL(
+                resolvingBookmarkData: data,
+                options: [],
+                relativeTo: nil,
+                bookmarkDataIsStale: &stale
+            ) else { return nil }
+            url = ordinaryURL
+        }
 
         if stale, let refreshed = try? makeBookmark(for: url) {
             UserDefaults.standard.set(refreshed, forKey: bookmarkDefaultsKey)
