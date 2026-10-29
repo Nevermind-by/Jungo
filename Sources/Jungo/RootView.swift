@@ -666,6 +666,26 @@ struct RootView: View {
                         Button("Удалить…", role: .destructive) { taskPendingDeletionID = task.id }
                     }
             }
+            if !hasActiveFilters {
+                Button {
+                    createTask(in: column)
+                } label: {
+                    Label("Добавить задачу", systemImage: "plus")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 11)
+                        .padding(.vertical, 10)
+                        .contentShape(RoundedRectangle(cornerRadius: 10))
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color.secondary.opacity(0.08))
+                        )
+                }
+                .buttonStyle(.plain)
+                .help("Создать задачу в колонке «\(column.title)»")
+                .accessibilityHint("Создаёт задачу непосредственно в этой колонке.")
+            }
             Spacer(minLength: 0)
         }
         .padding(12)
