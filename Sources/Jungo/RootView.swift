@@ -348,11 +348,7 @@ struct RootView: View {
                             .accessibilityLabel("Поиск задач")
                     }
                     .padding(.horizontal, 12).padding(.vertical, 9)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: JungoDesign.controlRadius, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: JungoDesign.controlRadius, style: .continuous)
-                            .strokeBorder(Color.primary.opacity(0.07), lineWidth: 1)
-                    }
+                    .jungoGlassPanel(radius: JungoDesign.controlRadius)
                     Picker("Приоритет", selection: $priorityFilter) {
                         ForEach(PriorityFilter.allCases) { filter in Text(filter.title).tag(filter) }
                     }
@@ -369,7 +365,6 @@ struct RootView: View {
                 }
             }
             .padding(20)
-            .jungoGlassPanel(radius: JungoDesign.panelRadius)
             .padding(.horizontal, 18)
             .padding(.top, 14)
             .padding(.bottom, 12)
@@ -625,7 +620,7 @@ struct RootView: View {
         }
         .padding(12)
         .frame(maxHeight: .infinity, alignment: .top)
-        .jungoGlassPanel(radius: 20)
+        .jungoTaskSurface(radius: 20)
         .dropDestination(for: String.self) { identifiers, _ in
             guard let rawID = identifiers.first, let draggedID = UUID(uuidString: rawID) else { return false }
             moveTask(draggedID, to: column, before: nil)
