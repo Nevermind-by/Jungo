@@ -5,23 +5,23 @@ let outputPath = CommandLine.arguments.dropFirst().first ?? "AppIcon.icns"
 let fileManager = FileManager.default
 let outputURL = URL(fileURLWithPath: outputPath)
 let iconsetURL = outputURL.deletingLastPathComponent().appendingPathComponent("Jungo.iconset", isDirectory: true)
+let projectRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+let masterArtworkURL = projectRoot.appendingPathComponent("Resources/JungoIconMaster.png")
 
 try fileManager.createDirectory(at: outputURL.deletingLastPathComponent(), withIntermediateDirectories: true)
 try fileManager.createDirectory(at: iconsetURL, withIntermediateDirectories: true)
 
-func color(_ red: CGFloat, _ green: CGFloat, _ blue: CGFloat, _ alpha: CGFloat = 1) -> NSColor {
-    NSColor(calibratedRed: red, green: green, blue: blue, alpha: alpha)
-}
-
-func roundedRect(_ rect: NSRect, radius: CGFloat) -> NSBezierPath {
-    NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
-}
-
-func fillGradient(_ path: NSBezierPath, colors: [NSColor], angle: CGFloat = 90) {
-    (NSGradient(colors: colors) ?? NSGradient(starting: colors[0], ending: colors[0]))?.draw(in: path, angle: angle)
+guard fileManager.fileExists(atPath: masterArtworkURL.path),
+      let masterArtwork = NSImage(contentsOf: masterArtworkURL) else {
+    throw NSError(
+        domain: "JungoIcon",
+        code: 3,
+        userInfo: [NSLocalizedDescriptionKey: "Не найден исходный арт иконки: \\(masterArtworkURL.path). Поместите утверждённый PNG в Resources/JungoIconMaster.png."]
+    )
 }
 
 func drawIcon(size: Int) throws -> Data {
+    let pixels = CGFloat(size)
     guard let bitmap = NSBitmapImageRep(
         bitmapDataPlanes: nil,
         pixelsWide: size,
@@ -40,78 +40,24 @@ func drawIcon(size: Int) throws -> Data {
     NSGraphicsContext.saveGraphicsState()
     NSGraphicsContext.current = context
     context.imageInterpolation = .high
+    NSColor.clear.setFill()
+    NSRect(x: 0, y: 0, width: pixels, height: pixels).fill()
 
-    let u = CGFloat(size)
-    let bounds = NSRect(x: 0, y: 0, width: u, height: u)
-    let inset = u * 0.035
-    let tile = roundedRect(bounds.insetBy(dx: inset, dy: inset), radius: u * 0.225)
-
-    // Deep midnight glass base: rich and dimensional, without a neon frame.
-    fillGradient(tile, colors: [
-        color(0.075, 0.13, 0.21),
-        color(0.035, 0.065, 0.12),
-        color(0.055, 0.10, 0.17)
-    ], angle: 90)
-    color(0.52, 0.69, 0.82, 0.18).setStroke()
-    tile.lineWidth = max(0.7, u * 0.0025)
-    tile.stroke()
-
-    // Three glass lanes sit at different depths/heights to give the mark
-    // an intentional, slightly asymmetric silhouette at Dock size.
-    let laneSpecs: [(x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat, top: NSColor, bottom: NSColor)] = [
-        (0.205, 0.245, 0.165, 0.49, color(0.20, 0.29, 0.46, 0.88), color(0.10, 0.16, 0.29, 0.96)),
-        (0.415, 0.17, 0.17, 0.62, color(0.31, 0.42, 0.61, 0.88), color(0.12, 0.20, 0.34, 0.97)),
-        (0.63, 0.235, 0.165, 0.50, color(0.24, 0.35, 0.54, 0.88), color(0.10, 0.17, 0.30, 0.96))
-    ]
-
-    for spec in laneSpecs {
-        let rect = NSRect(x: u * spec.x, y: u * spec.y, width: u * spec.w, height: u * spec.h)
-        let lane = roundedRect(rect, radius: u * 0.055)
-        fillGradient(lane, colors: [spec.top, spec.bottom], angle: 90)
-        // Restrained glass contour; no outer bloom or glow.
-        color(0.76, 0.86, 0.98, 0.17).setStroke()
-        lane.lineWidth = max(0.65, u * 0.002)
-        lane.stroke()
-
-        let highlight = NSBezierPath()
-        highlight.move(to: NSPoint(x: rect.minX + u * 0.018, y: rect.minY + u * 0.055))
-        highlight.line(to: NSPoint(x: rect.minX + u * 0.018, y: rect.maxY - u * 0.075))
-        highlight.lineWidth = max(0.5, u * 0.003)
-        color(0.86, 0.93, 1.0, 0.13).setStroke()
-        highlight.stroke()
-    }
-
-    // The foreground task card is deliberately tilted, echoing the reference
-    // concept's layered perspective without adding neon or an illuminated rim.
-    let cardRect = NSRect(x: u * 0.285, y: u * 0.405, width: u * 0.43, height: u * 0.235)
-    context.saveGraphicsState()
-    let cardTransform = NSAffineTransform()
-    cardTransform.translateX(by: cardRect.midX, yBy: cardRect.midY)
-    cardTransform.rotate(byDegrees: -8)
-    cardTransform.translateX(by: -cardRect.midX, yBy: -cardRect.midY)
-    cardTransform.concat()
-
-    let card = roundedRect(cardRect, radius: u * 0.055)
-    let shadow = NSShadow()
-    shadow.shadowColor = color(0.0, 0.015, 0.06, 0.24)
-    shadow.shadowBlurRadius = u * 0.009
-    shadow.shadowOffset = NSSize(width: 0, height: -u * 0.006)
-    shadow.set()
-    fillGradient(card, colors: [color(0.37, 0.66, 1.0), color(0.08, 0.31, 0.91)], angle: 90)
-
-    // A restrained surface reflection, contained inside the card only.
-    let sheen = NSBezierPath()
-    sheen.move(to: NSPoint(x: cardRect.minX + u * 0.02, y: cardRect.maxY - u * 0.025))
-    sheen.line(to: NSPoint(x: cardRect.maxX - u * 0.025, y: cardRect.maxY - u * 0.025))
-    sheen.lineWidth = max(0.6, u * 0.002)
-    color(0.90, 0.96, 1.0, 0.20).setStroke()
-    sheen.stroke()
-    context.restoreGraphicsState()
+    // Use the approved artwork itself, not a Swift approximation. The source
+    // is square and is scaled directly into each standard macOS iconset size.
+    masterArtwork.draw(
+        in: NSRect(x: 0, y: 0, width: pixels, height: pixels),
+        from: NSRect(origin: .zero, size: masterArtwork.size),
+        operation: .copy,
+        fraction: 1,
+        respectFlipped: false,
+        hints: [.interpolation: NSImageInterpolation.high]
+    )
 
     context.flushGraphics()
     NSGraphicsContext.restoreGraphicsState()
-
     bitmap.size = NSSize(width: size, height: size)
+
     guard let tiff = bitmap.tiffRepresentation,
           let pngBitmap = NSBitmapImageRep(data: tiff),
           let png = pngBitmap.representation(using: .png, properties: [:]) else {
