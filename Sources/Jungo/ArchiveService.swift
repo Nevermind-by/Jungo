@@ -51,7 +51,7 @@ extension JungoArchiveDocument {
             var taskIDMap: [UUID: UUID] = [:]
 
             let existingBoards = try importContext.fetch(FetchDescriptor<Board>())
-            let nextBoardSortOrder = (existingBoards.map(\\.sortOrder).max() ?? -1) + 1
+            let nextBoardSortOrder = (existingBoards.map { $0.sortOrder }.max() ?? -1) + 1
 
             for record in boards.sorted(by: { $0.sortOrder < $1.sortOrder }) {
                 let newID = UUID()
@@ -128,7 +128,7 @@ enum ArchiveError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .unsupportedVersion(let version): "Версия архива \\(version) не поддерживается."
+        case .unsupportedVersion(let version): "Версия архива \(version) не поддерживается."
         case .duplicateIdentifiers: "Архив содержит повторяющиеся идентификаторы."
         case .brokenReferences: "В архиве есть задачи или колонки без родительской записи."
         case .emptyTitles: "В архиве есть записи без названия."
