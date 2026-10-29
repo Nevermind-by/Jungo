@@ -324,6 +324,12 @@ struct RootView: View {
     }
 
     private func boardWorkspace(_ board: Board) -> some View {
+        // Group once per workspace render instead of rescanning every task and
+        // checklist for every column/card. This keeps large boards responsive.
+        let taskCandidatesByColumn = Dictionary(grouping: allTasks, by: \.columnID)
+        let checklistItemsByTask = Dictionary(grouping: allChecklistItems, by: \.taskID)
+            .mapValues { $0.sorted { $0.sortOrder < $1.sortOrder } }
+
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center, spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
@@ -333,7 +339,7 @@ struct RootView: View {
                             .font(.caption.weight(.medium))
                             .foregroundStyle(.secondary)
                     }
-                    Text(showTrash ? "\(trashedTasks(for: board).count) в корзине" : "\(visibleColumns.reduce(0) { $0 + tasks(in: $1).count }) задач")
+                    Text(showTrash ? "\(trashedTasks(for: board).count) в корзине" : "\(visibleColumns.reduce(0) { $0 + tasks(in: $1, candidates: taskCandidatesByColumn[$1.id] ?? []).count }) задач")
                         .foregroundStyle(.secondary).font(.subheadline)
                 }
                 Spacer()
@@ -384,7 +390,14 @@ struct RootView: View {
             } else {
                 ScrollView(.horizontal) {
                     HStack(alignment: .top, spacing: 14) {
-                        ForEach(visibleColumns) { column in columnView(column).frame(width: 270) }
+                        ForEach(visibleColumns) { column in
+                            columnView(
+                                column,
+                                taskCandidates: taskCandidatesByColumn[column.id] ?? [],
+                                checklistItemsByTask: checklistItemsByTask
+                            )
+                            .frame(width: 270)
+                        }
                         addColumnTile
                     }
                     .padding(20)
@@ -510,8 +523,7 @@ struct RootView: View {
         .frame(width: 220)
     }
 
-    private func taskAccessibilitySummary(for task: TaskCard) -> String {
-        let taskChecklist = allChecklistItems.filter { $0.taskID == task.id }
+    private func taskAccessibilitySummary(for task: TaskCard, checklistItems taskChecklist: [TaskChecklistItem]) -> String {
         let checklistSummary = taskChecklist.isEmpty
             ? ""
             : ", чек-лист: \(taskChecklist.filter(\.isCompleted).count) из \(taskChecklist.count) выполнено"
@@ -524,9 +536,13 @@ struct RootView: View {
         return "Задача: \(task.title), приоритет: \(task.priority.title)\(dueDateSummary)\(labelsSummary)\(checklistSummary)"
     }
 
-    private func columnView(_ column: BoardColumn) -> some View {
-        let columnTasks = tasks(in: column)
-        let hasTasksBeforeFilters = allTasks.contains { $0.columnID == column.id && !$0.isInTrash }
+    private func columnView(
+        _ column: BoardColumn,
+        taskCandidates: [TaskCard],
+        checklistItemsByTask: [UUID: [TaskChecklistItem]]
+    ) -> some View {
+        let columnTasks = tasks(in: column, candidates: taskCandidates)
+        let hasTasksBeforeFilters = taskCandidates.contains { !$0.isInTrash }
         return VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Circle().fill(columnColor(column.sortOrder)).frame(width: 8, height: 8)
@@ -585,10 +601,10 @@ struct RootView: View {
                 Button {
                     selectedTask = task
                 } label: {
-                    TaskCardView(task: task, checklistItems: allChecklistItems.filter { $0.taskID == task.id }.sorted { $0.sortOrder < $1.sortOrder })
+                    TaskCardView(task: task, checklistItems: checklistItemsByTask[task.id] ?? [])
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(taskAccessibilitySummary(for: task))
+                .accessibilityLabel(taskAccessibilitySummary(for: task, checklistItems: checklistItemsByTask[task.id] ?? []))
                 .draggable(task.id.uuidString)
                     .dropDestination(for: String.self) { identifiers, _ in
                         guard let rawID = identifiers.first, let draggedID = UUID(uuidString: rawID) else { return false }
@@ -628,8 +644,8 @@ struct RootView: View {
         }
     }
 
-    private func tasks(in column: BoardColumn) -> [TaskCard] {
-        allTasks.filter { task in
+    private func tasks(in column: BoardColumn, candidates: [TaskCard]? = nil) -> [TaskCard] {
+        (candidates ?? allTasks).filter { task in
             guard task.columnID == column.id, !task.isInTrash else { return false }
             let matchesSearch = searchText.isEmpty ||
                 task.title.localizedCaseInsensitiveContains(searchText) ||
