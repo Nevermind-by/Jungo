@@ -1,10 +1,14 @@
 import AppKit
 import Carbon
+import Combine
 
 /// Registers a system-wide shortcut without Accessibility permissions or third-party packages.
 @MainActor
-final class GlobalHotKeyManager {
+final class GlobalHotKeyManager: ObservableObject {
     static let shared = GlobalHotKeyManager()
+
+    @Published private(set) var isRegistered = false
+    @Published private(set) var registrationError: String?
 
     private var eventHandler: EventHandlerRef?
     private var hotKeyRef: EventHotKeyRef?
@@ -19,37 +23,65 @@ final class GlobalHotKeyManager {
 
     func start() {
         guard !isStarted else { return }
-        isStarted = true
 
         var eventType = EventTypeSpec(
             eventClass: OSType(kEventClassKeyboard),
             eventKind: UInt32(kEventHotKeyPressed)
         )
+        var installedHandler: EventHandlerRef?
         let installStatus = InstallEventHandler(
             GetApplicationEventTarget(),
             jungoHotKeyHandler,
             1,
             &eventType,
             nil,
-            &eventHandler
+            &installedHandler
         )
-        guard installStatus == noErr else {
+        guard installStatus == noErr, let installedHandler else {
+            registrationError = "Не удалось установить обработчик горячей клавиши (код \(installStatus))."
             NSLog("Jungo: failed to install global hotkey handler (%d)", installStatus)
             return
         }
 
         let hotKeyID = EventHotKeyID(signature: OSType(0x4A554E47), id: 1)
+        var registeredHotKey: EventHotKeyRef?
         let registerStatus = RegisterEventHotKey(
             UInt32(kVK_Space),
             UInt32(cmdKey | optionKey),
             hotKeyID,
             GetApplicationEventTarget(),
             0,
-            &hotKeyRef
+            &registeredHotKey
         )
-        if registerStatus != noErr {
+        guard registerStatus == noErr, let registeredHotKey else {
+            RemoveEventHandler(installedHandler)
+            eventHandler = nil
+            hotKeyRef = nil
+            isStarted = false
+            isRegistered = false
+            registrationError = "Не удалось зарегистрировать ⌘⌥Space. Возможно, сочетание уже занято другим приложением."
             NSLog("Jungo: failed to register global shortcut ⌘⌥Space (%d)", registerStatus)
+            return
         }
+
+        eventHandler = installedHandler
+        hotKeyRef = registeredHotKey
+        isStarted = true
+        isRegistered = true
+        registrationError = nil
+    }
+
+    func stop() {
+        if let hotKeyRef {
+            UnregisterEventHotKey(hotKeyRef)
+        }
+        if let eventHandler {
+            RemoveEventHandler(eventHandler)
+        }
+        hotKeyRef = nil
+        eventHandler = nil
+        isStarted = false
+        isRegistered = false
     }
 
     func requestQuickCapture() {

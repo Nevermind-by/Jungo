@@ -50,6 +50,7 @@ struct JungoApp: App {
 
 struct MenuBarQuickCaptureMenu: View {
     @Environment(\.openWindow) private var openWindow
+    @ObservedObject private var hotKeyManager = GlobalHotKeyManager.shared
 
     var body: some View {
         Group {
@@ -64,8 +65,16 @@ struct MenuBarQuickCaptureMenu: View {
             }
 
             Divider()
-            Text("Глобальная клавиша: ⌘⌥Space")
-                .foregroundStyle(.secondary)
+            if hotKeyManager.isRegistered {
+                Label("Глобальная клавиша активна: ⌘⌥Space", systemImage: "checkmark.circle")
+                    .foregroundStyle(.secondary)
+            } else {
+                Label(hotKeyManager.registrationError ?? "Глобальная клавиша не зарегистрирована", systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.secondary)
+                Button("Повторить регистрацию клавиши") {
+                    hotKeyManager.start()
+                }
+            }
         }
         .onAppear {
             GlobalHotKeyManager.shared.configure(openWindow: { openWindow(id: "main") })
