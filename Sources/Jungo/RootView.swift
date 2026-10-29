@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import AppKit
+import UniformTypeIdentifiers
 
 struct RootView: View {
     @Environment(\.modelContext) private var modelContext
@@ -10,10 +11,40 @@ struct RootView: View {
 
     @State private var selectedBoardID: UUID?
     @State private var editingBoardID: UUID?
-    @State private var isCreatingBoard = false
-    @State private var newBoardTitle = ""
+    @State private var editingColumnID: UUID?
+    @State private var isNamingBoard = false
+    @State private var isNamingColumn = false
+    @State private var nameInput = ""
     @State private var selectedTask: TaskCard?
+    @State private var taskPendingDeletionID: UUID?
+    @State private var columnPendingDeletionID: UUID?
+    @State private var showDeleteBoardConfirmation = false
     @State private var searchText = ""
+    @State private var priorityFilter: PriorityFilter = .all
+    @State private var showOverdueOnly = false
+    @State private var errorMessage: String?
+    @State private var statusMessage: String?
+
+    private enum PriorityFilter: String, CaseIterable, Identifiable {
+        case all, low, normal, high
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .all: "Все приоритеты"
+            case .low: "Низкий"
+            case .normal: "Обычный"
+            case .high: "Высокий"
+            }
+        }
+        var value: TaskPriority? {
+            switch self {
+            case .all: nil
+            case .low: .low
+            case .normal: .normal
+            case .high: .high
+            }
+        }
+    }
 
     private var selectedBoard: Board? {
         boards.first(where: { $0.id == selectedBoardID }) ?? boards.first
@@ -31,11 +62,7 @@ struct RootView: View {
             if let board = selectedBoard {
                 boardWorkspace(board)
             } else {
-                ContentUnavailableView(
-                    "Создай первую доску",
-                    systemImage: "rectangle.split.3x1",
-                    description: Text("Jungo хранит задачи локально на этом Mac.")
-                )
+                ContentUnavailableView("Создай первую доску", systemImage: "rectangle.split.3x1", description: Text("Jungo хранит задачи локально на этом Mac."))
             }
         }
         .navigationSplitViewStyle(.balanced)
@@ -43,34 +70,45 @@ struct RootView: View {
         .onReceive(NotificationCenter.default.publisher(for: .jungoCreateTask)) { _ in
             if let column = visibleColumns.first { createTask(in: column) }
         }
-        .sheet(item: $selectedTask) { task in
-            TaskEditorSheet(task: task)
-        }
-        .alert(editingBoardID == nil ? "Новая доска" : "Переименовать доску", isPresented: $isCreatingBoard) {
-            TextField("Название доски", text: $newBoardTitle)
-            Button("Отмена", role: .cancel) {
-                newBoardTitle = ""
-                editingBoardID = nil
-            }
-            Button("Сохранить") { createOrRenameBoard() }
-                .disabled(newBoardTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        .sheet(item: $selectedTask) { task in TaskEditorSheet(task: task, onSave: saveChanges) }
+        .confirmationDialog("Удалить доску и все её задачи?", isPresented: $showDeleteBoardConfirmation, titleVisibility: .visible) {
+            Button("Удалить доску", role: .destructive, action: deleteSelectedBoard)
+            Button("Отмена", role: .cancel) {}
         } message: {
-            Text("Например, «Личные задачи» или «Jungo».")
+            Text("Это действие нельзя отменить. Перед удалением можно экспортировать данные в JSON.")
+        }
+        .confirmationDialog("Удалить колонку?", isPresented: Binding(get: { columnPendingDeletionID != nil }, set: { if !$0 { columnPendingDeletionID = nil } }), titleVisibility: .visible) {
+            Button("Удалить и перенести задачи", role: .destructive) { deletePendingColumn() }
+            Button("Отмена", role: .cancel) { columnPendingDeletionID = nil }
+        } message: {
+            Text("Карточки будут перемещены в первую оставшуюся колонку этой доски. Последнюю колонку удалить нельзя.")
+        }
+        .confirmationDialog("Удалить задачу?", isPresented: Binding(get: { taskPendingDeletionID != nil }, set: { if !$0 { taskPendingDeletionID = nil } }), titleVisibility: .visible) {
+            Button("Удалить задачу", role: .destructive) { deletePendingTask() }
+            Button("Отмена", role: .cancel) { taskPendingDeletionID = nil }
+        }
+        .alert("Jungo", isPresented: Binding(get: { errorMessage != nil || statusMessage != nil }, set: { if !$0 { errorMessage = nil; statusMessage = nil } })) {
+            Button("ОК") { errorMessage = nil; statusMessage = nil }
+        } message: {
+            Text(errorMessage ?? statusMessage ?? "")
         }
     }
 
     private var sidebar: some View {
         List(selection: $selectedBoardID) {
-            Section("Рабочее пространство") {
-                ForEach(boards) { board in
+            Section("Доски") {
+                ForEach(boards.sorted(by: { $0.sortOrder < $1.sortOrder })) { board in
                     Label(board.title, systemImage: "rectangle.split.3x1")
                         .tag(board.id)
                         .contextMenu {
                             Button("Переименовать") {
                                 editingBoardID = board.id
-                                newBoardTitle = board.title
+                                nameInput = board.title
+                                isNamingBoard = true
+                            }
+                            Button("Удалить доску…", role: .destructive) {
                                 selectedBoardID = board.id
-                                isCreatingBoard = true
+                                showDeleteBoardConfirmation = true
                             }
                         }
                 }
@@ -79,56 +117,68 @@ struct RootView: View {
         .listStyle(.sidebar)
         .navigationTitle("Jungo")
         .safeAreaInset(edge: .bottom) {
-            Button {
-                editingBoardID = nil
-                newBoardTitle = ""
-                isCreatingBoard = true
-            } label: {
-                Label("Новая доска", systemImage: "plus")
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(spacing: 10) {
+                Button {
+                    editingBoardID = nil
+                    nameInput = ""
+                    isNamingBoard = true
+                } label: {
+                    Label("Новая доска", systemImage: "plus").frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+                HStack(spacing: 8) {
+                    Button(action: exportArchive) { Label("Экспорт", systemImage: "square.and.arrow.up") }
+                    Button(action: importArchive) { Label("Импорт", systemImage: "square.and.arrow.down") }
+                }
+                .buttonStyle(.borderless)
+                .font(.caption)
             }
-            .buttonStyle(.plain)
             .padding()
+        }
+        .alert("Название доски", isPresented: $isNamingBoard) {
+            TextField("Название", text: $nameInput)
+            Button("Отмена", role: .cancel) { nameInput = ""; editingBoardID = nil }
+            Button("Сохранить", action: saveBoardName).disabled(nameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
     }
 
     private func boardWorkspace(_ board: Board) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .center) {
+            HStack(alignment: .center, spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(board.title).font(.largeTitle.weight(.bold))
                     Text("\(visibleColumns.reduce(0) { $0 + tasks(in: $1).count }) задач")
-                        .foregroundStyle(.secondary)
-                        .font(.subheadline)
+                        .foregroundStyle(.secondary).font(.subheadline)
                 }
                 Spacer()
                 HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                    TextField("Поиск задач", text: $searchText)
-                        .textFieldStyle(.plain)
-                        .frame(width: 160)
+                    TextField("Поиск задач", text: $searchText).textFieldStyle(.plain).frame(width: 145)
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
+                .padding(.horizontal, 10).padding(.vertical, 8)
                 .background(.quaternary, in: RoundedRectangle(cornerRadius: 9))
-                Button {
-                    if let first = visibleColumns.first { createTask(in: first) }
-                } label: {
+                Picker("Приоритет", selection: $priorityFilter) {
+                    ForEach(PriorityFilter.allCases) { filter in Text(filter.title).tag(filter) }
+                }
+                .labelsHidden().frame(width: 145)
+                Toggle(isOn: $showOverdueOnly) {
+                    Image(systemName: "calendar.badge.exclamationmark")
+                }
+                .toggleStyle(.button).help("Только просроченные задачи")
+                Button(action: { if let first = visibleColumns.first { createTask(in: first) } }) {
                     Label("Новая задача", systemImage: "plus")
                 }
-                .keyboardShortcut("n", modifiers: .command)
-                .buttonStyle(.borderedProminent)
+                .keyboardShortcut("n", modifiers: .command).buttonStyle(.borderedProminent)
             }
-            .padding(24)
+            .padding(22)
             Divider()
             if visibleColumns.isEmpty {
                 ContentUnavailableView("Пока нет колонок", systemImage: "rectangle.split.3x1")
             } else {
                 ScrollView(.horizontal) {
-                    HStack(alignment: .top, spacing: 16) {
-                        ForEach(visibleColumns) { column in
-                            columnView(column).frame(width: 260)
-                        }
+                    HStack(alignment: .top, spacing: 14) {
+                        ForEach(visibleColumns) { column in columnView(column).frame(width: 270) }
+                        addColumnTile
                     }
                     .padding(20)
                 }
@@ -136,110 +186,237 @@ struct RootView: View {
             Spacer(minLength: 0)
         }
         .background(Color(nsColor: .windowBackgroundColor))
+        .toolbar {
+            ToolbarItemGroup {
+                Menu {
+                    Button("Добавить колонку", action: beginAddColumn)
+                    Divider()
+                    Button("Экспортировать данные…", action: exportArchive)
+                    Button("Импортировать данные…", action: importArchive)
+                    Divider()
+                    Button("Удалить доску…", role: .destructive) { showDeleteBoardConfirmation = true }
+                } label: { Image(systemName: "ellipsis.circle") }
+            }
+        }
+        .alert("Название колонки", isPresented: $isNamingColumn) {
+            TextField("Название", text: $nameInput)
+            Button("Отмена", role: .cancel) { nameInput = ""; editingColumnID = nil }
+            Button("Сохранить", action: saveColumnName).disabled(nameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        }
+    }
+
+    private var addColumnTile: some View {
+        Button(action: beginAddColumn) {
+            Label("Добавить колонку", systemImage: "plus")
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(14)
+                .foregroundStyle(.secondary)
+                .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+        .frame(width: 220)
     }
 
     private func columnView(_ column: BoardColumn) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let columnTasks = tasks(in: column)
+        return VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Circle().fill(columnColor(column.sortOrder)).frame(width: 8, height: 8)
-                Text(column.title).font(.headline)
-                Text("\(tasks(in: column).count)")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(.quaternary, in: Capsule())
+                Text(column.title).font(.headline).lineLimit(1)
+                Text("\(columnTasks.count)").font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                    .padding(.horizontal, 6).padding(.vertical, 2).background(.quaternary, in: Capsule())
                 Spacer()
                 Menu {
-                    Button("Добавить задачу") { createTask(in: column) }
+                    Button("Переименовать") {
+                        editingColumnID = column.id
+                        nameInput = column.title
+                        isNamingColumn = true
+                    }
+                    Button("Переместить влево", systemImage: "arrow.left") { moveColumn(column, by: -1) }
+                        .disabled(column.sortOrder == 0)
+                    Button("Переместить вправо", systemImage: "arrow.right") { moveColumn(column, by: 1) }
+                        .disabled(column.sortOrder >= visibleColumns.count - 1)
+                    Divider()
+                    Button("Добавить задачу", systemImage: "plus") { createTask(in: column) }
+                    Button("Удалить колонку…", role: .destructive) { columnPendingDeletionID = column.id }
+                        .disabled(visibleColumns.count <= 1)
                 } label: {
-                    Image(systemName: "ellipsis")
-                        .foregroundStyle(.secondary)
-                        .frame(width: 24, height: 24)
-                        .contentShape(Rectangle())
+                    Image(systemName: "ellipsis").foregroundStyle(.secondary).frame(width: 24, height: 24)
                 }
                 .menuStyle(.borderlessButton)
             }
-            ForEach(tasks(in: column)) { task in
+            ForEach(columnTasks) { task in
                 TaskCardView(task: task)
                     .onTapGesture { selectedTask = task }
+                    .draggable(task.id.uuidString)
+                    .dropDestination(for: String.self) { identifiers, _ in
+                        guard let rawID = identifiers.first, let draggedID = UUID(uuidString: rawID) else { return false }
+                        moveTask(draggedID, to: column, before: task.id)
+                        return true
+                    }
                     .contextMenu {
                         Button("Редактировать") { selectedTask = task }
                         Menu("Переместить в") {
                             ForEach(visibleColumns.filter { $0.id != column.id }) { destination in
-                                Button(destination.title) { move(task, to: destination) }
+                                Button(destination.title) { moveTask(task.id, to: destination, before: nil) }
                             }
                         }
                         Divider()
-                        Button("Удалить задачу", role: .destructive) {
-                            modelContext.delete(task)
-                            saveChanges()
-                        }
+                        Button("Удалить…", role: .destructive) { taskPendingDeletionID = task.id }
                     }
             }
-            Button {
-                createTask(in: column)
-            } label: {
+            Button { createTask(in: column) } label: {
                 Label("Добавить задачу", systemImage: "plus")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(10)
+                    .font(.subheadline).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(10)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            Spacer(minLength: 0)
         }
         .padding(12)
         .frame(maxHeight: .infinity, alignment: .top)
         .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 14))
         .overlay { RoundedRectangle(cornerRadius: 14).strokeBorder(.quaternary, lineWidth: 1) }
+        .dropDestination(for: String.self) { identifiers, _ in
+            guard let rawID = identifiers.first, let draggedID = UUID(uuidString: rawID) else { return false }
+            moveTask(draggedID, to: column, before: nil)
+            return true
+        }
     }
 
     private func tasks(in column: BoardColumn) -> [TaskCard] {
-        allTasks.filter {
-            $0.columnID == column.id &&
-            (searchText.isEmpty ||
-             $0.title.localizedCaseInsensitiveContains(searchText) ||
-             $0.details.localizedCaseInsensitiveContains(searchText))
+        allTasks.filter { task in
+            guard task.columnID == column.id else { return false }
+            let matchesSearch = searchText.isEmpty ||
+                task.title.localizedCaseInsensitiveContains(searchText) ||
+                task.details.localizedCaseInsensitiveContains(searchText)
+            let matchesPriority = priorityFilter.value == nil || task.priority == priorityFilter.value
+            let matchesOverdue = !showOverdueOnly || (task.dueDate.map { $0 < Calendar.current.startOfDay(for: .now) } ?? false)
+            return matchesSearch && matchesPriority && matchesOverdue
         }.sorted { $0.sortOrder < $1.sortOrder }
     }
 
     private func createTask(in column: BoardColumn) {
         let task = TaskCard(title: "Новая задача", sortOrder: tasks(in: column).count, columnID: column.id)
         modelContext.insert(task)
-        saveChanges()
+        guard saveChanges() else { return }
         selectedTask = task
     }
 
-    private func move(_ task: TaskCard, to destination: BoardColumn) {
-        let destinationCount = allTasks.filter { $0.columnID == destination.id }.count
+    private func moveTask(_ taskID: UUID, to destination: BoardColumn, before targetID: UUID?) {
+        guard let task = allTasks.first(where: { $0.id == taskID }), task.id != targetID,
+              let destinationBoard = boards.first(where: { $0.id == destination.boardID }),
+              destinationBoard.id == selectedBoard?.id else { return }
+
+        let sourceColumnID = task.columnID
+        var sourceTasks = allTasks.filter { $0.columnID == sourceColumnID && $0.id != taskID }.sorted { $0.sortOrder < $1.sortOrder }
+        var destinationTasks = allTasks.filter { $0.columnID == destination.id && $0.id != taskID }.sorted { $0.sortOrder < $1.sortOrder }
+        let insertion: Int
+        if let targetID, let targetIndex = destinationTasks.firstIndex(where: { $0.id == targetID }) {
+            insertion = targetIndex
+        } else {
+            insertion = destinationTasks.count
+        }
         task.columnID = destination.id
-        task.sortOrder = destinationCount
-        saveChanges()
+        destinationTasks.insert(task, at: min(insertion, destinationTasks.count))
+        for (index, item) in destinationTasks.enumerated() { item.sortOrder = index }
+        for (index, item) in sourceTasks.enumerated() { item.sortOrder = index }
+        if sourceColumnID == destination.id {
+            sourceTasks = destinationTasks
+            for (index, item) in sourceTasks.enumerated() { item.sortOrder = index }
+        }
+        _ = saveChanges()
     }
 
-    private func createOrRenameBoard() {
-        let title = newBoardTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !title.isEmpty else { return }
+    private func beginAddColumn() {
+        editingColumnID = nil
+        nameInput = ""
+        isNamingColumn = true
+    }
 
-        if let editingBoardID, let existing = boards.first(where: { $0.id == editingBoardID }) {
-            existing.title = title
+    private func saveColumnName() {
+        let title = nameInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty, let board = selectedBoard else { return }
+        if let editingColumnID, let column = visibleColumns.first(where: { $0.id == editingColumnID }) {
+            column.title = title
+        } else {
+            modelContext.insert(BoardColumn(title: title, sortOrder: visibleColumns.count, boardID: board.id))
+        }
+        nameInput = ""
+        editingColumnID = nil
+        _ = saveChanges()
+    }
+
+    private func moveColumn(_ column: BoardColumn, by offset: Int) {
+        var ordered = visibleColumns
+        guard let index = ordered.firstIndex(where: { $0.id == column.id }) else { return }
+        let destination = index + offset
+        guard ordered.indices.contains(destination) else { return }
+        ordered.swapAt(index, destination)
+        for (order, item) in ordered.enumerated() { item.sortOrder = order }
+        _ = saveChanges()
+    }
+
+    private func deletePendingColumn() {
+        defer { columnPendingDeletionID = nil }
+        guard let id = columnPendingDeletionID,
+              let column = visibleColumns.first(where: { $0.id == id }),
+              visibleColumns.count > 1,
+              let destination = visibleColumns.first(where: { $0.id != id }) else { return }
+        let movingTasks = allTasks.filter { $0.columnID == column.id }.sorted { $0.sortOrder < $1.sortOrder }
+        let start = allTasks.filter { $0.columnID == destination.id }.count
+        for (offset, task) in movingTasks.enumerated() {
+            task.columnID = destination.id
+            task.sortOrder = start + offset
+        }
+        modelContext.delete(column)
+        let remaining = visibleColumns.filter { $0.id != id }
+        for (index, item) in remaining.enumerated() { item.sortOrder = index }
+        _ = saveChanges()
+    }
+
+    private func deletePendingTask() {
+        defer { taskPendingDeletionID = nil }
+        guard let id = taskPendingDeletionID, let task = allTasks.first(where: { $0.id == id }) else { return }
+        let columnID = task.columnID
+        modelContext.delete(task)
+        let remaining = allTasks.filter { $0.columnID == columnID && $0.id != id }.sorted { $0.sortOrder < $1.sortOrder }
+        for (index, item) in remaining.enumerated() { item.sortOrder = index }
+        _ = saveChanges()
+    }
+
+    private func saveBoardName() {
+        let title = nameInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else { return }
+        if let editingBoardID, let board = boards.first(where: { $0.id == editingBoardID }) {
+            board.title = title
         } else {
             let board = Board(title: title, sortOrder: boards.count)
             modelContext.insert(board)
-            for (index, name) in ["К выполнению", "В работе", "Готово"].enumerated() {
-                modelContext.insert(BoardColumn(title: name, sortOrder: index, boardID: board.id))
+            for (index, title) in ["К выполнению", "В работе", "Готово"].enumerated() {
+                modelContext.insert(BoardColumn(title: title, sortOrder: index, boardID: board.id))
             }
             selectedBoardID = board.id
         }
-        saveChanges()
-        newBoardTitle = ""
+        nameInput = ""
         editingBoardID = nil
+        _ = saveChanges()
+    }
+
+    private func deleteSelectedBoard() {
+        guard let board = selectedBoard else { return }
+        let columns = allColumns.filter { $0.boardID == board.id }
+        for task in allTasks where columns.contains(where: { $0.id == task.columnID }) { modelContext.delete(task) }
+        for column in columns { modelContext.delete(column) }
+        modelContext.delete(board)
+        selectedBoardID = boards.first(where: { $0.id != board.id })?.id
+        _ = saveChanges()
     }
 
     private func seedIfNeeded() {
         guard boards.isEmpty else {
-            if selectedBoardID == nil { selectedBoardID = boards.first?.id }
+            if selectedBoardID == nil { selectedBoardID = boards.sorted(by: { $0.sortOrder < $1.sortOrder }).first?.id }
             return
         }
         let board = Board(title: "Моя доска")
@@ -253,14 +430,54 @@ struct RootView: View {
         modelContext.insert(TaskCard(title: "Познакомиться с Jungo", details: "Это пример карточки. Можно изменить её или удалить.", columnID: todo.id))
         modelContext.insert(TaskCard(title: "Настроить рабочий процесс", details: "Создавай задачи, перемещай их между колонками и сохраняй порядок.", priority: .high, columnID: doing.id))
         selectedBoardID = board.id
-        saveChanges()
+        _ = saveChanges()
     }
 
-    private func saveChanges() {
+    @discardableResult
+    private func saveChanges() -> Bool {
         do {
             try modelContext.save()
+            return true
         } catch {
-            assertionFailure("SwiftData save failed: \(error.localizedDescription)")
+            errorMessage = "Не удалось сохранить изменения: \(error.localizedDescription)"
+            return false
+        }
+    }
+
+    private func exportArchive() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = "Jungo-Backup-\(Date.now.formatted(.iso8601.year().month().day())).json"
+        panel.title = "Экспортировать данные Jungo"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            let archive = JungoArchive.capture(boards: boards, columns: allColumns, tasks: allTasks)
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            encoder.dateEncodingStrategy = .iso8601
+            try encoder.encode(archive).write(to: url, options: .atomic)
+            statusMessage = "Экспорт завершён: \(url.lastPathComponent)"
+        } catch {
+            errorMessage = "Не удалось экспортировать данные: \(error.localizedDescription)"
+        }
+    }
+
+    private func importArchive() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.title = "Импортировать архив Jungo"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            let archive = try decoder.decode(JungoArchive.self, from: Data(contentsOf: url))
+            try archive.importInto(modelContext)
+            selectedBoardID = boards.sorted(by: { $0.sortOrder < $1.sortOrder }).last?.id
+            statusMessage = "Импортировано досок: \(archive.boards.count). Существующие данные не заменялись."
+        } catch {
+            errorMessage = "Не удалось импортировать архив: \(error.localizedDescription)"
         }
     }
 
@@ -278,15 +495,10 @@ private struct TaskCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(task.title)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.primary)
+            Text(task.title).font(.system(size: 14, weight: .medium)).foregroundStyle(.primary)
                 .frame(maxWidth: .infinity, alignment: .leading)
             if !task.details.isEmpty {
-                Text(task.details)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(3)
+                Text(task.details).font(.caption).foregroundStyle(.secondary).lineLimit(3)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             HStack {
@@ -294,9 +506,18 @@ private struct TaskCardView: View {
                     .font(.caption2)
                     .foregroundStyle(task.priority == .high ? .orange : .secondary)
                 Spacer()
-                Text(task.createdAt, format: .dateTime.month(.abbreviated).day())
+                if let dueDate = task.dueDate {
+                    Label {
+                        Text(dueDate, format: .dateTime.month(.abbreviated).day())
+                    } icon: {
+                        Image(systemName: "calendar")
+                    }
                     .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(dueDate < Calendar.current.startOfDay(for: .now) ? .red : .secondary)
+                } else {
+                    Text(task.createdAt, format: .dateTime.month(.abbreviated).day())
+                        .font(.caption2).foregroundStyle(.tertiary)
+                }
             }
         }
         .padding(12)
@@ -310,38 +531,38 @@ private struct TaskEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Bindable var task: TaskCard
+    let onSave: () -> Bool
+    @State private var hasDueDate = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             Text("Задача").font(.title2.bold())
-            TextField("Название", text: $task.title)
-                .textFieldStyle(.roundedBorder)
-                .font(.title3)
+            TextField("Название", text: $task.title).textFieldStyle(.roundedBorder).font(.title3)
             VStack(alignment: .leading, spacing: 6) {
                 Text("Описание").font(.subheadline.weight(.medium))
-                TextEditor(text: $task.details)
-                    .frame(minHeight: 120)
-                    .padding(4)
+                TextEditor(text: $task.details).frame(minHeight: 120).padding(4)
                     .overlay(RoundedRectangle(cornerRadius: 8).stroke(.quaternary))
             }
             Picker("Приоритет", selection: $task.priority) {
-                ForEach(TaskPriority.allCases) { priority in
-                    Text(priority.title).tag(priority)
-                }
+                ForEach(TaskPriority.allCases) { priority in Text(priority.title).tag(priority) }
             }
             .pickerStyle(.segmented)
+            Toggle("Установить срок", isOn: $hasDueDate)
+                .onChange(of: hasDueDate) { _, enabled in if enabled && task.dueDate == nil { task.dueDate = .now }; if !enabled { task.dueDate = nil } }
+            if hasDueDate {
+                DatePicker("Срок", selection: Binding(get: { task.dueDate ?? .now }, set: { task.dueDate = $0 }), displayedComponents: .date)
+            }
             HStack {
                 Spacer()
                 Button("Отмена", role: .cancel) { dismiss() }
-                Button("Готово") {
-                    do { try modelContext.save() } catch { assertionFailure(error.localizedDescription) }
-                    dismiss()
+                Button("Сохранить") {
+                    if onSave() { dismiss() }
                 }
-                .keyboardShortcut(.defaultAction)
-                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction).buttonStyle(.borderedProminent)
             }
         }
         .padding(24)
-        .frame(width: 440)
+        .frame(width: 460)
+        .onAppear { hasDueDate = task.dueDate != nil }
     }
 }

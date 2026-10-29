@@ -40,6 +40,7 @@ final class TaskCard {
     var sortOrder: Int
     var columnID: UUID
     var createdAt: Date
+    var dueDate: Date?
 
     var priority: TaskPriority {
         get { TaskPriority(rawValue: priorityRawValue) ?? .normal }
@@ -53,7 +54,8 @@ final class TaskCard {
         priority: TaskPriority = .normal,
         sortOrder: Int = 0,
         columnID: UUID,
-        createdAt: Date = .now
+        createdAt: Date = .now,
+        dueDate: Date? = nil
     ) {
         self.id = id
         self.title = title
@@ -62,6 +64,7 @@ final class TaskCard {
         self.sortOrder = sortOrder
         self.columnID = columnID
         self.createdAt = createdAt
+        self.dueDate = dueDate
     }
 }
 
