@@ -313,7 +313,8 @@ struct RootView: View {
                 .buttonStyle(.borderless)
                 .font(.caption)
             }
-            .padding()
+            .padding(14)
+            .background(.regularMaterial)
         }
         .alert("Название доски", isPresented: $isNamingBoard) {
             TextField("Название", text: $nameInput)
@@ -346,8 +347,12 @@ struct RootView: View {
                             .focused($isSearchFocused)
                             .accessibilityLabel("Поиск задач")
                     }
-                    .padding(.horizontal, 10).padding(.vertical, 8)
-                    .background(.quaternary, in: RoundedRectangle(cornerRadius: 9))
+                    .padding(.horizontal, 12).padding(.vertical, 9)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: JungoDesign.controlRadius, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: JungoDesign.controlRadius, style: .continuous)
+                            .strokeBorder(Color.primary.opacity(0.07), lineWidth: 1)
+                    }
                     Picker("Приоритет", selection: $priorityFilter) {
                         ForEach(PriorityFilter.allCases) { filter in Text(filter.title).tag(filter) }
                     }
@@ -363,8 +368,11 @@ struct RootView: View {
                     .buttonStyle(.borderedProminent)
                 }
             }
-            .padding(22)
-            Divider()
+            .padding(20)
+            .jungoGlassPanel(radius: JungoDesign.panelRadius)
+            .padding(.horizontal, 18)
+            .padding(.top, 14)
+            .padding(.bottom, 12)
             if showTrash {
                 trashWorkspace(for: board)
             } else if visibleColumns.isEmpty {
@@ -389,7 +397,9 @@ struct RootView: View {
             }
             Spacer(minLength: 0)
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background {
+            JungoCanvasBackground()
+        }
         .sheet(isPresented: $showQuickAdd) {
             QuickAddTaskSheet(
                 columns: visibleColumns,
@@ -499,7 +509,7 @@ struct RootView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(14)
                 .foregroundStyle(.secondary)
-                .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+                .jungoGlassPanel(radius: 18)
         }
         .buttonStyle(.plain)
         .frame(width: 220)
@@ -615,8 +625,7 @@ struct RootView: View {
         }
         .padding(12)
         .frame(maxHeight: .infinity, alignment: .top)
-        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 14))
-        .overlay { RoundedRectangle(cornerRadius: 14).strokeBorder(.quaternary, lineWidth: 1) }
+        .jungoGlassPanel(radius: 20)
         .dropDestination(for: String.self) { identifiers, _ in
             guard let rawID = identifiers.first, let draggedID = UUID(uuidString: rawID) else { return false }
             moveTask(draggedID, to: column, before: nil)
@@ -1089,8 +1098,7 @@ private struct TaskCardView: View {
             }
         }
         .padding(12)
-        .background(Color(nsColor: .windowBackgroundColor), in: RoundedRectangle(cornerRadius: 10))
-        .overlay { RoundedRectangle(cornerRadius: 10).strokeBorder(.quaternary, lineWidth: 1) }
+        .jungoTaskSurface(radius: 14)
         .contentShape(RoundedRectangle(cornerRadius: 10))
     }
 }
@@ -1280,8 +1288,9 @@ private struct QuickAddTaskSheet: View {
                 .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || selectedColumnID == nil)
             }
         }
-        .padding(24)
-        .frame(width: 440)
+        .padding(26)
+        .frame(width: 460)
+        .background(JungoCanvasBackground())
         .onAppear {
             if selectedColumnID == nil { selectedColumnID = columns.first?.id }
         }
