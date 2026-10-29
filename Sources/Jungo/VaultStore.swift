@@ -202,7 +202,12 @@ enum VaultStore {
         let boardIDs = Set(boards.map(\.id))
         let columnIDs = Set(columns.map(\.id))
         let taskIDs = Set(tasks.map(\.id))
-        guard columns.allSatisfy({ boardIDs.contains($0.boardID) }),
+        let checklistIDs = Set(checklistItems.map(\.id))
+        guard boardIDs.count == boards.count,
+              columnIDs.count == columns.count,
+              taskIDs.count == tasks.count,
+              checklistIDs.count == checklistItems.count,
+              columns.allSatisfy({ boardIDs.contains($0.boardID) }),
               tasks.allSatisfy({ columnIDs.contains($0.columnID) }),
               checklistItems.allSatisfy({ taskIDs.contains($0.taskID) }) else {
             throw VaultError.invalidReferences
@@ -303,7 +308,7 @@ enum VaultStore {
               Set(copiedBoards.map(\.id)) == boardIDs,
               Set(copiedColumns.map(\.id)) == columnIDs,
               Set(copiedTasks.map(\.id)) == taskIDs,
-              Set(copiedChecklistItems.map(\.id)) == Set(checklistItems.map(\.id)),
+              Set(copiedChecklistItems.map(\.id)) == checklistIDs,
               boardValuesMatch,
               columnValuesMatch,
               taskValuesMatch,
