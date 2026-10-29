@@ -649,12 +649,13 @@ struct RootView: View {
     }
 
     private func tasks(in column: BoardColumn, candidates: [TaskCard]? = nil) -> [TaskCard] {
-        (candidates ?? allTasks).filter { task in
+        let normalizedSearchText = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (candidates ?? allTasks).filter { task in
             guard task.columnID == column.id, !task.isInTrash else { return false }
-            let matchesSearch = searchText.isEmpty ||
-                task.title.localizedCaseInsensitiveContains(searchText) ||
-                task.details.localizedCaseInsensitiveContains(searchText) ||
-                task.labels.contains { $0.localizedCaseInsensitiveContains(searchText) }
+            let matchesSearch = normalizedSearchText.isEmpty ||
+                task.title.localizedCaseInsensitiveContains(normalizedSearchText) ||
+                task.details.localizedCaseInsensitiveContains(normalizedSearchText) ||
+                task.labels.contains { $0.localizedCaseInsensitiveContains(normalizedSearchText) }
             let matchesPriority = priorityFilter.value == nil || task.priority == priorityFilter.value
             let matchesLabel = selectedLabel.isEmpty || task.labels.contains { $0.caseInsensitiveCompare(selectedLabel) == .orderedSame }
             let matchesOverdue = !showOverdueOnly || (task.dueDate.map { $0 < Calendar.current.startOfDay(for: .now) } ?? false)
@@ -1248,9 +1249,6 @@ private struct TaskEditorSheet: View {
             }
             .pickerStyle(.segmented)
             Toggle("Установить срок", isOn: $draftHasDueDate)
-                .onChange(of: draftHasDueDate) { _, enabled in
-                    if enabled && task.dueDate == nil { draftDueDate = .now }
-                }
             if draftHasDueDate {
                 DatePicker("Срок", selection: $draftDueDate, displayedComponents: .date)
             }
