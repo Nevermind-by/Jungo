@@ -1816,7 +1816,7 @@ private struct QuickAddTaskSheet: View {
             .padding(.vertical, 13)
             .background(.bar)
         }
-        .frame(width: 500, minHeight: 490, idealHeight: 560)
+        .frame(minWidth: 500, idealWidth: 500, maxWidth: 500, minHeight: 490, idealHeight: 560)
         .background(JungoCanvasBackground())
         .onAppear {
             if selectedColumnID == nil { selectedColumnID = columns.first?.id }
