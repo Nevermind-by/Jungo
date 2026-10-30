@@ -35,7 +35,7 @@ struct SaveTaskFilterSheet: View {
                         .textFieldStyle(.plain)
                         .font(.system(.body).weight(.medium))
                         .padding(10)
-                        .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 9))
+                        .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: JungoDesign.inputRadius))
                         .onSubmit(save)
                 }
             }

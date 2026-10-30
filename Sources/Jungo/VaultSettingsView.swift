@@ -52,7 +52,7 @@ struct VaultSettingsView: View {
                                 .textSelection(.enabled)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(10)
-                                .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 9))
+                                .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: JungoDesign.inputRadius))
                             HStack {
                                 Label(VaultStore.currentStoreURL.lastPathComponent, systemImage: "cylinder.split.1x2")
                                     .font(.system(.footnote).weight(.medium))
