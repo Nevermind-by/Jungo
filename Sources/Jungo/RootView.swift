@@ -247,8 +247,14 @@ struct RootView: View {
         List(selection: $selectedBoardID) {
             Section("Доски") {
                 ForEach(activeBoards) { board in
-                    Label(board.title, systemImage: "rectangle.split.3x1")
-                        .tag(board.id)
+                    Label {
+                        Text(board.title)
+                            .font(.system(size: 12, weight: selectedBoardID == board.id ? .semibold : .medium))
+                    } icon: {
+                        Image(systemName: "rectangle.split.3x1")
+                            .foregroundStyle(Color.accentColor.opacity(0.85))
+                    }
+                    .tag(board.id)
                         .contextMenu {
                             Button("Переименовать") {
                                 editingBoardID = board.id
@@ -271,9 +277,15 @@ struct RootView: View {
             if !archivedBoards.isEmpty {
                 Section("Архив · \(archivedBoards.count)") {
                     ForEach(archivedBoards) { board in
-                        Label(board.title, systemImage: "archivebox")
-                            .tag(board.id)
-                            .foregroundStyle(.secondary)
+                        Label {
+                            Text(board.title)
+                                .font(.system(size: 11, weight: .medium))
+                        } icon: {
+                            Image(systemName: "archivebox")
+                                .foregroundStyle(.tertiary)
+                        }
+                        .tag(board.id)
+                        .foregroundStyle(.secondary)
                             .contextMenu {
                                 Button("Восстановить из архива", systemImage: "arrow.uturn.backward") {
                                     restoreBoardFromArchive(board)
@@ -348,8 +360,8 @@ struct RootView: View {
                 .font(.system(size: 11, weight: .medium))
                 .controlSize(.small)
             }
-            .padding(14)
-            .background(.regularMaterial)
+            .padding(12)
+            .jungoGlassPanel(radius: 16)
         }
         .alert("Название доски", isPresented: $isNamingBoard) {
             TextField("Название", text: $nameInput)
@@ -1032,39 +1044,63 @@ struct RootView: View {
         let tasks = trashedTasks(for: board)
         return Group {
             if tasks.isEmpty {
-                ContentUnavailableView("Корзина пуста", systemImage: "trash", description: Text("Удалённые задачи можно будет восстановить здесь."))
+                ContentUnavailableView(
+                    "Корзина пуста",
+                    systemImage: "trash",
+                    description: Text("Удалённые задачи появятся здесь. Их можно восстановить или удалить навсегда.")
+                )
             } else {
                 List {
                     ForEach(tasks) { task in
-                        HStack(spacing: 12) {
+                        HStack(spacing: 13) {
+                            Image(systemName: "doc.text")
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 34, height: 34)
+                                .background(Color.secondary.opacity(0.09), in: RoundedRectangle(cornerRadius: 10))
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(task.title).font(.headline)
+                                Text(task.title)
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .lineLimit(2)
                                 if !task.details.isEmpty {
-                                    Text(task.details).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                                    Text(task.details)
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(2)
                                 }
-                                Text("Доска: \(board.title) · Удалена в корзину")
-                                    .font(.caption2).foregroundStyle(.tertiary)
+                                Text("Доска: \(board.title) · В корзине")
+                                    .font(.system(size: 9, weight: .medium))
+                                    .foregroundStyle(.tertiary)
                             }
-                            Spacer()
+                            Spacer(minLength: 8)
                             Button("Восстановить", systemImage: "arrow.uturn.backward") {
                                 restoreTask(task)
                             }
                             .buttonStyle(.bordered)
+                            .controlSize(.small)
                             Button(role: .destructive) {
                                 taskPendingPermanentDeletionID = task.id
                             } label: {
                                 Image(systemName: "trash.slash")
+                                    .frame(width: 28, height: 28)
                             }
                             .buttonStyle(.borderless)
                             .help("Удалить навсегда")
                             .accessibilityLabel("Удалить задачу навсегда: \(task.title)")
                         }
-                        .padding(.vertical, 4)
+                        .padding(9)
+                        .jungoTaskSurface(radius: 13)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .padding(.vertical, 3)
                     }
                 }
-                .listStyle(.inset)
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             }
         }
+        .padding(.horizontal, 18)
+        .padding(.bottom, 18)
     }
 
     private func saveBoardName() {
