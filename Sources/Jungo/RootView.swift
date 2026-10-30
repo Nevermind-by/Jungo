@@ -1365,6 +1365,9 @@ struct RootView: View {
 
 private struct TaskCardView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ScaledMetric(relativeTo: .body) private var titleFontSize: CGFloat = 14
+    @ScaledMetric(relativeTo: .footnote) private var detailFontSize: CGFloat = 11.5
+    @ScaledMetric(relativeTo: .caption) private var metadataFontSize: CGFloat = 10
     @State private var isHovering = false
 
     let task: TaskCard
@@ -1397,7 +1400,7 @@ private struct TaskCardView: View {
         VStack(alignment: .leading, spacing: 11) {
             HStack(spacing: 6) {
                 Label(task.priority.title, systemImage: task.priority.symbol)
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(size: metadataFontSize, weight: .semibold))
                     .foregroundStyle(priorityTint)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
@@ -1411,7 +1414,7 @@ private struct TaskCardView: View {
                     } icon: {
                         Image(systemName: "calendar")
                     }
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.system(size: metadataFontSize, weight: .medium))
                     .foregroundStyle(isOverdue ? .red : .secondary)
                     .padding(.horizontal, 7)
                     .padding(.vertical, 4)
@@ -1421,7 +1424,7 @@ private struct TaskCardView: View {
             }
 
             Text(task.title)
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: titleFontSize, weight: .semibold))
                 .foregroundStyle(.primary)
                 .lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)
@@ -1429,7 +1432,7 @@ private struct TaskCardView: View {
 
             if !task.details.isEmpty {
                 Text(task.details)
-                    .font(.system(size: 11.5))
+                    .font(.system(size: detailFontSize))
                     .foregroundStyle(.secondary)
                     .lineSpacing(2)
                     .lineLimit(4)
@@ -1453,12 +1456,12 @@ private struct TaskCardView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 6) {
                         Image(systemName: "checklist")
-                            .font(.system(size: 10, weight: .medium))
+                            .font(.system(size: metadataFontSize, weight: .medium))
                         Text("Чек-лист")
-                            .font(.system(size: 10, weight: .medium))
+                            .font(.system(size: metadataFontSize, weight: .medium))
                         Spacer()
                         Text("\(completedChecklistCount) из \(checklistItems.count)")
-                            .font(.system(size: 10, weight: .semibold).monospacedDigit())
+                            .font(.system(size: metadataFontSize, weight: .semibold).monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
                     ProgressView(value: Double(completedChecklistCount), total: Double(checklistItems.count))
@@ -1473,7 +1476,7 @@ private struct TaskCardView: View {
                     Image(systemName: "clock")
                         .font(.system(size: 9))
                     Text(task.createdAt, format: .dateTime.month(.abbreviated).day())
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.system(size: metadataFontSize, weight: .medium))
                 }
                 .foregroundStyle(.tertiary)
             }
