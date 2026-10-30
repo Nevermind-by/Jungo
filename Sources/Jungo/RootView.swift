@@ -370,6 +370,46 @@ struct RootView: View {
         }
     }
 
+    private var searchControl: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+            TextField("Поиск задач", text: $searchText)
+                .textFieldStyle(.plain)
+                .frame(minWidth: 100, idealWidth: 145, maxWidth: 180)
+                .focused($isSearchFocused)
+                .accessibilityLabel("Поиск задач")
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .jungoGlassPanel(radius: JungoDesign.controlRadius)
+    }
+
+    private var filterControls: some View {
+        HStack(spacing: 8) {
+            Picker("Приоритет", selection: $priorityFilter) {
+                ForEach(PriorityFilter.allCases) { filter in Text(filter.title).tag(filter) }
+            }
+            .labelsHidden()
+            .frame(width: 130)
+            Toggle(isOn: $showOverdueOnly) {
+                Image(systemName: "calendar.badge.exclamationmark")
+            }
+            .toggleStyle(.button)
+            .help("Только просроченные задачи")
+            .accessibilityLabel("Только просроченные задачи")
+        }
+    }
+
+    private var newTaskButton: some View {
+        Button {
+            showQuickAdd = true
+        } label: {
+            Label("Новая задача", systemImage: "plus")
+        }
+        .buttonStyle(.borderedProminent)
+        .disabled(visibleColumns.isEmpty)
+    }
+
     private func boardWorkspace(_ board: Board) -> some View {
         // Group once per workspace render instead of rescanning every task and
         // checklist for every column/card. This keeps large boards responsive.
@@ -394,30 +434,20 @@ struct RootView: View {
                     Button("Вернуться к доске", systemImage: "arrow.uturn.backward") { showTrash = false }
                         .buttonStyle(.bordered)
                 } else {
-                    HStack(spacing: 8) {
-                        Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                        TextField("Поиск задач", text: $searchText).textFieldStyle(.plain).frame(width: 145)
-                            .focused($isSearchFocused)
-                            .accessibilityLabel("Поиск задач")
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 8) {
+                            searchControl
+                            filterControls
+                            newTaskButton
+                        }
+                        VStack(alignment: .trailing, spacing: 8) {
+                            HStack(spacing: 8) {
+                                searchControl
+                                filterControls
+                            }
+                            newTaskButton
+                        }
                     }
-                    .padding(.horizontal, 12).padding(.vertical, 9)
-                    .jungoGlassPanel(radius: JungoDesign.controlRadius)
-                    Picker("Приоритет", selection: $priorityFilter) {
-                        ForEach(PriorityFilter.allCases) { filter in Text(filter.title).tag(filter) }
-                    }
-                    .labelsHidden().frame(width: 145)
-                    Toggle(isOn: $showOverdueOnly) {
-                        Image(systemName: "calendar.badge.exclamationmark")
-                    }
-                    .toggleStyle(.button).help("Только просроченные задачи")
-                    .accessibilityLabel("Только просроченные задачи")
-                    Button {
-                        showQuickAdd = true
-                    } label: {
-                        Label("Новая задача", systemImage: "plus")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(visibleColumns.isEmpty)
                 }
             }
             .padding(20)
@@ -447,7 +477,7 @@ struct RootView: View {
                                 checklistItemsByTask: checklistItemsByTask,
                                 taskMoveNamespace: taskMoveNamespace
                             )
-                            .frame(width: 270)
+                            .frame(minWidth: JungoDesign.columnMinimumWidth, idealWidth: JungoDesign.columnIdealWidth, maxWidth: 300)
                         }
                         addColumnTile
                     }
@@ -571,7 +601,7 @@ struct RootView: View {
                 .jungoGlassPanel(radius: 18)
         }
         .buttonStyle(.plain)
-        .frame(width: 220)
+        .frame(minWidth: 200, idealWidth: 220, maxWidth: 240)
     }
 
     private func taskAccessibilitySummary(for task: TaskCard, checklistItems taskChecklist: [TaskChecklistItem]) -> String {
@@ -1242,6 +1272,9 @@ struct RootView: View {
 }
 
 private struct TaskCardView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHovering = false
+
     let task: TaskCard
     let checklistItems: [TaskChecklistItem]
     let moveNamespace: Namespace.ID
@@ -1355,6 +1388,21 @@ private struct TaskCardView: View {
         .padding(13)
         .frame(maxWidth: .infinity, alignment: .leading)
         .jungoTaskSurface(radius: 15)
+        .overlay {
+            RoundedRectangle(cornerRadius: 15, style: .continuous)
+                .strokeBorder(Color.accentColor.opacity(isHovering ? 0.38 : 0), lineWidth: 1)
+                .allowsHitTesting(false)
+        }
+        .shadow(color: .black.opacity(isHovering ? 0.08 : 0.025), radius: isHovering ? 9 : 3, y: isHovering ? 4 : 1)
+        .onHover { hovering in
+            if reduceMotion {
+                isHovering = hovering
+            } else {
+                withAnimation(.easeOut(duration: 0.16)) {
+                    isHovering = hovering
+                }
+            }
+        }
         .overlay(alignment: .leading) {
             if let accentColor {
                 Capsule()
@@ -1610,7 +1658,7 @@ private struct TaskEditorSheet: View {
             .padding(.vertical, 13)
             .background(.bar)
         }
-        .frame(minWidth: 520, idealWidth: 600, maxWidth: 720, minHeight: 620, idealHeight: 760)
+        .frame(minWidth: 440, idealWidth: 600, maxWidth: 720, minHeight: 520, idealHeight: 760)
         .background(JungoCanvasBackground())
         .onAppear {
             draftTitle = task.title
@@ -1852,7 +1900,7 @@ private struct QuickAddTaskSheet: View {
             .padding(.vertical, 13)
             .background(.bar)
         }
-        .frame(minWidth: 500, idealWidth: 500, maxWidth: 500, minHeight: 490, idealHeight: 560)
+        .frame(minWidth: 420, idealWidth: 500, maxWidth: 560, minHeight: 450, idealHeight: 560)
         .background(JungoCanvasBackground())
         .onAppear {
             if selectedColumnID == nil { selectedColumnID = columns.first?.id }
