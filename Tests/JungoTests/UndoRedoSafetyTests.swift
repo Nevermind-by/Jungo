@@ -17,6 +17,7 @@ final class UndoRedoSafetyTests: XCTestCase {
 
     func testUndoAndRedoRestoreCascadeDeletedBoardGraph() async throws {
         try await MainActor.run {
+            print("UndoRedoSafetyTests: creating in-memory context")
             let (_, context, undoManager) = try makeContext()
             let board = Board(title: "Board")
             let column = BoardColumn(title: "Todo", sortOrder: 0, boardID: board.id)
@@ -42,7 +43,9 @@ final class UndoRedoSafetyTests: XCTestCase {
             XCTAssertEqual(try context.fetch(FetchDescriptor<TaskCard>()).count, 0)
             XCTAssertEqual(try context.fetch(FetchDescriptor<TaskChecklistItem>()).count, 0)
 
+            print("UndoRedoSafetyTests: before cascade undo")
             undoManager.undo()
+            print("UndoRedoSafetyTests: after cascade undo")
 
             let restoredBoards = try context.fetch(FetchDescriptor<Board>())
             let restoredColumns = try context.fetch(FetchDescriptor<BoardColumn>())
