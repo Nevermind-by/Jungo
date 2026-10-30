@@ -24,7 +24,7 @@ struct JungoApp: App {
             Group {
                 if let modelContainer {
                     RootView()
-                        .frame(minWidth: 860, minHeight: 560)
+                        .frame(minWidth: 760, minHeight: 520)
                         .modelContainer(modelContainer)
                 } else {
                     VaultUnavailableView(message: startupError ?? "Неизвестная ошибка хранилища.")

@@ -11,6 +11,8 @@ enum JungoDesign {
     static let contentSpacing: CGFloat = 18
     static let compactSpacing: CGFloat = 10
     static let horizontalInset: CGFloat = 22
+    static let columnMinimumWidth: CGFloat = 250
+    static let columnIdealWidth: CGFloat = 270
 }
 
 struct JungoCanvasBackground: View {
