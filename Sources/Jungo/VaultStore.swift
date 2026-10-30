@@ -18,6 +18,7 @@ enum VaultStore {
         case invalidReferences
         case verificationFailed
         case existingVaultNotFound
+        case invalidStore
 
         var errorDescription: String? {
             switch self {
@@ -26,11 +27,13 @@ enum VaultStore {
             case .destinationAlreadyExists(let url):
                 "В выбранной папке уже есть файл хранилища: \(url.lastPathComponent). Чтобы не перезаписать данные, перенос остановлен."
             case .invalidReferences:
-                "В базе найдены связи между досками, колонками и задачами, которые не удалось проверить. Перенос отменён."
+                "В базе найдены связи между досками, колонками и задачами, которые не удалось проверить. Операция отменена."
             case .verificationFailed:
                 "Проверка новой базы не прошла. Активное хранилище осталось прежним."
             case .existingVaultNotFound:
                 "В выбранной папке не найден Jungo.store. Восстановление доступа не изменило настройки и данные."
+            case .invalidStore:
+                "Файл Jungo.store пустой или не похож на существующее хранилище Jungo. Настройки доступа не изменены."
             }
         }
     }
@@ -148,10 +151,23 @@ enum VaultStore {
 
     static func restoreAccess(to folderURL: URL) throws {
         let folder = folderURL.standardizedFileURL
+        let didStartAccess = folderURL.startAccessingSecurityScopedResource()
+        defer {
+            if didStartAccess { folderURL.stopAccessingSecurityScopedResource() }
+        }
         let storeURL = folder.appendingPathComponent("Jungo.store")
         guard FileManager.default.fileExists(atPath: storeURL.path) else {
             throw VaultError.existingVaultNotFound
         }
+        let attributes = try FileManager.default.attributesOfItem(atPath: storeURL.path)
+        guard let fileSize = attributes[.size] as? NSNumber, fileSize.intValue > 0 else {
+            throw VaultError.invalidStore
+        }
+        // Do not persist a bookmark to a file that merely exists. Open the
+        // database and validate its complete object graph first; otherwise a
+        // corrupt or unrelated file could become the active vault.
+        try validateStore(at: storeURL)
+
         let bookmark = try makeBookmark(for: folder)
         UserDefaults.standard.set(bookmark, forKey: bookmarkDefaultsKey)
         UserDefaults.standard.set(folder.path, forKey: pathDefaultsKey)
@@ -218,16 +234,40 @@ enum VaultStore {
         }
     }
 
-    private static func copyAndVerify(sourceContext: ModelContext, targetURL: URL) throws {
-        let boards = try sourceContext.fetch(FetchDescriptor<Board>())
-        let columns = try sourceContext.fetch(FetchDescriptor<BoardColumn>())
-        let tasks = try sourceContext.fetch(FetchDescriptor<TaskCard>())
-        let checklistItems = try sourceContext.fetch(FetchDescriptor<TaskChecklistItem>())
+    private static func validateStore(at storeURL: URL) throws {
+        let configuration = ModelConfiguration(
+            "JungoVault",
+            schema: schema,
+            url: storeURL,
+            allowsSave: true,
+            cloudKitDatabase: .none
+        )
+        let container = try ModelContainer(for: schema, configurations: [configuration])
+        let context = ModelContext(container)
+        let boards = try context.fetch(FetchDescriptor<Board>())
+        let columns = try context.fetch(FetchDescriptor<BoardColumn>())
+        let tasks = try context.fetch(FetchDescriptor<TaskCard>())
+        let checklistItems = try context.fetch(FetchDescriptor<TaskChecklistItem>())
 
+        try validateReferences(
+            boards: boards,
+            columns: columns,
+            tasks: tasks,
+            checklistItems: checklistItems
+        )
+    }
+
+    private static func validateReferences(
+        boards: [Board],
+        columns: [BoardColumn],
+        tasks: [TaskCard],
+        checklistItems: [TaskChecklistItem]
+    ) throws {
         let boardIDs = Set(boards.map(\.id))
         let columnIDs = Set(columns.map(\.id))
         let taskIDs = Set(tasks.map(\.id))
         let checklistIDs = Set(checklistItems.map(\.id))
+
         guard boardIDs.count == boards.count,
               columnIDs.count == columns.count,
               taskIDs.count == tasks.count,
@@ -237,6 +277,26 @@ enum VaultStore {
               checklistItems.allSatisfy({ taskIDs.contains($0.taskID) }) else {
             throw VaultError.invalidReferences
         }
+    }
+
+    private static func copyAndVerify(sourceContext: ModelContext, targetURL: URL) throws {
+        let boards = try sourceContext.fetch(FetchDescriptor<Board>())
+        let columns = try sourceContext.fetch(FetchDescriptor<BoardColumn>())
+        let tasks = try sourceContext.fetch(FetchDescriptor<TaskCard>())
+        let checklistItems = try sourceContext.fetch(FetchDescriptor<TaskChecklistItem>())
+
+        try validateReferences(
+            boards: boards,
+            columns: columns,
+            tasks: tasks,
+            checklistItems: checklistItems
+        )
+
+        // Retain source ID sets for the post-copy equality check below.
+        let boardIDs = Set(boards.map(\.id))
+        let columnIDs = Set(columns.map(\.id))
+        let taskIDs = Set(tasks.map(\.id))
+        let checklistIDs = Set(checklistItems.map(\.id))
 
         let targetConfiguration = ModelConfiguration(
             "JungoVault",
