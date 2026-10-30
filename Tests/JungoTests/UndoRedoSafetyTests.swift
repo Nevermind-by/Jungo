@@ -16,9 +16,8 @@ final class UndoRedoSafetyTests: XCTestCase {
         return (container, context, undoManager)
     }
 
-    func testUndoAndRedoRestoreCascadeDeletedBoardGraph() async throws {
-        try await MainActor.run {
-            print("UndoRedoSafetyTests: creating in-memory context")
+    func testUndoAndRedoRestoreCascadeDeletedBoardGraph() throws {
+        try MainActor.assumeIsolated {
             let (_, context, undoManager) = try Self.makeContext()
             let board = Board(title: "Board")
             let column = BoardColumn(title: "Todo", sortOrder: 0, boardID: board.id)
@@ -47,9 +46,7 @@ final class UndoRedoSafetyTests: XCTestCase {
             XCTAssertEqual(try context.fetch(FetchDescriptor<TaskCard>()).count, 0)
             XCTAssertEqual(try context.fetch(FetchDescriptor<TaskChecklistItem>()).count, 0)
 
-            print("UndoRedoSafetyTests: before cascade undo")
             undoManager.undo()
-            print("UndoRedoSafetyTests: after cascade undo")
 
             let restoredBoards = try context.fetch(FetchDescriptor<Board>())
             let restoredColumns = try context.fetch(FetchDescriptor<BoardColumn>())
@@ -73,8 +70,8 @@ final class UndoRedoSafetyTests: XCTestCase {
         }
     }
 
-    func testUndoAndRedoRestoreTaskMoveAcrossColumns() async throws {
-        try await MainActor.run {
+    func testUndoAndRedoRestoreTaskMoveAcrossColumns() throws {
+        try MainActor.assumeIsolated {
             let (_, context, undoManager) = try Self.makeContext()
             let board = Board(title: "Board")
             let source = BoardColumn(title: "Todo", sortOrder: 0, boardID: board.id)
@@ -104,8 +101,8 @@ final class UndoRedoSafetyTests: XCTestCase {
         }
     }
 
-    func testUndoAndRedoRestoreTrashStateWithoutDeletingTask() async throws {
-        try await MainActor.run {
+    func testUndoAndRedoRestoreTrashStateWithoutDeletingTask() throws {
+        try MainActor.assumeIsolated {
             let (_, context, undoManager) = try Self.makeContext()
             let board = Board(title: "Board")
             let column = BoardColumn(title: "Todo", sortOrder: 0, boardID: board.id)
