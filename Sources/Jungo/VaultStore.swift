@@ -148,6 +148,10 @@ enum VaultStore {
 
     static func restoreAccess(to folderURL: URL) throws {
         let folder = folderURL.standardizedFileURL
+        let didStartAccess = folderURL.startAccessingSecurityScopedResource()
+        defer {
+            if didStartAccess { folderURL.stopAccessingSecurityScopedResource() }
+        }
         let storeURL = folder.appendingPathComponent("Jungo.store")
         guard FileManager.default.fileExists(atPath: storeURL.path) else {
             throw VaultError.existingVaultNotFound
