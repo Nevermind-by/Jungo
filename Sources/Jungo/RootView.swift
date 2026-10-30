@@ -36,6 +36,8 @@ struct RootView: View {
     @FocusState private var isSearchFocused: Bool
     @State private var errorMessage: String?
     @State private var statusMessage: String?
+    @State private var targetedDropColumnID: UUID?
+    @State private var targetedDropTaskID: UUID?
     @Namespace private var taskMoveNamespace
 
     private enum PriorityFilter: String, CaseIterable, Identifiable {
@@ -697,12 +699,38 @@ struct RootView: View {
                     moveTask(task, using: direction)
                 }
                 .draggable(task.id.uuidString)
-                    .dropDestination(for: String.self) { identifiers, _ in
-                        guard let rawID = identifiers.first, let draggedID = UUID(uuidString: rawID) else { return false }
+                .overlay(alignment: .top) {
+                    if targetedDropTaskID == task.id {
+                        Capsule()
+                            .fill(Color.accentColor)
+                            .frame(height: 3)
+                            .padding(.horizontal, 7)
+                            .offset(y: -2)
+                            .shadow(color: Color.accentColor.opacity(0.25), radius: 3, y: 1)
+                            .accessibilityHidden(true)
+                    }
+                }
+                .dropDestination(
+                    for: String.self,
+                    action: { identifiers, _ in
+                        guard let rawID = identifiers.first,
+                              let draggedID = UUID(uuidString: rawID) else { return false }
                         moveTask(draggedID, to: column, before: task.id)
                         return true
-                    }
-                    .contextMenu {
+                    },
+                    isTargeted: Binding(
+                        get: { targetedDropTaskID == task.id },
+                        set: { isTargeted in
+                            if isTargeted {
+                                targetedDropTaskID = task.id
+                                targetedDropColumnID = column.id
+                            } else if targetedDropTaskID == task.id {
+                                targetedDropTaskID = nil
+                            }
+                        }
+                    )
+                )
+                .contextMenu {
                         Button("Редактировать") { selectedTask = task }
                         Button("Дублировать задачу", systemImage: "plus.square.on.square") {
                             duplicateTask(task)
@@ -740,13 +768,44 @@ struct RootView: View {
         }
         .padding(12)
         .frame(maxHeight: .infinity, alignment: .top)
-        .jungoTaskSurface(radius: 20)
-        .animation(.snappy(duration: 0.28), value: columnTasks.map(\.id))
-        .dropDestination(for: String.self) { identifiers, _ in
-            guard let rawID = identifiers.first, let draggedID = UUID(uuidString: rawID) else { return false }
-            moveTask(draggedID, to: column, before: nil)
-            return true
+        .background {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color.accentColor.opacity(targetedDropColumnID == column.id ? 0.055 : 0))
+                .padding(1)
         }
+        .jungoTaskSurface(radius: 20)
+        .overlay {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(
+                    Color.accentColor.opacity(targetedDropColumnID == column.id ? 0.72 : 0),
+                    lineWidth: targetedDropColumnID == column.id ? 2 : 0
+                )
+                .padding(1)
+                .allowsHitTesting(false)
+        }
+        .animation(.snappy(duration: 0.18), value: targetedDropColumnID)
+        .animation(.snappy(duration: 0.28), value: columnTasks.map(\.id))
+        .dropDestination(
+            for: String.self,
+            action: { identifiers, _ in
+                guard let rawID = identifiers.first,
+                      let draggedID = UUID(uuidString: rawID) else { return false }
+                moveTask(draggedID, to: column, before: nil)
+                return true
+            },
+            isTargeted: Binding(
+                get: { targetedDropColumnID == column.id },
+                set: { isTargeted in
+                    if isTargeted {
+                        targetedDropColumnID = column.id
+                        targetedDropTaskID = nil
+                    } else if targetedDropColumnID == column.id {
+                        targetedDropColumnID = nil
+                        targetedDropTaskID = nil
+                    }
+                }
+            )
+        )
     }
 
     private func tasks(in column: BoardColumn, candidates: [TaskCard]? = nil) -> [TaskCard] {
