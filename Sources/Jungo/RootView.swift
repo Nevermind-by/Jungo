@@ -1565,7 +1565,7 @@ private struct TaskEditorSheet: View {
                                 .textFieldStyle(.plain)
                                 .font(.system(.title2).weight(.semibold))
                                 .padding(12)
-                                .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 11))
+                                .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: JungoDesign.inputRadius))
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("МЕТКИ")
                                     .font(.system(.caption2).weight(.bold))
@@ -1609,14 +1609,14 @@ private struct TaskEditorSheet: View {
                                     .padding(12)
                                 }
                                 .frame(minHeight: 145, maxHeight: 190)
-                                .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 11))
+                                .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: JungoDesign.inputRadius))
                             } else {
                                 TextEditor(text: $draftDetails)
                                     .font(.subheadline)
                                     .scrollContentBackground(.hidden)
                                     .padding(7)
                                     .frame(minHeight: 145, maxHeight: 190)
-                                    .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 11))
+                                    .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: JungoDesign.inputRadius))
                                     .overlay(alignment: .topLeading) {
                                         if draftDetails.isEmpty {
                                             Text("Опиши задачу, добавь детали или Markdown…")
@@ -1652,9 +1652,9 @@ private struct TaskEditorSheet: View {
                                             .frame(maxWidth: .infinity)
                                             .padding(.vertical, 9)
                                             .foregroundStyle(selected ? Color.accentColor : Color.secondary)
-                                            .background(selected ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 9))
+                                            .background(selected ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: JungoDesign.inputRadius))
                                             .overlay {
-                                                RoundedRectangle(cornerRadius: 9)
+                                                RoundedRectangle(cornerRadius: JungoDesign.inputRadius)
                                                     .strokeBorder(selected ? Color.accentColor.opacity(0.35) : Color.clear, lineWidth: 1)
                                             }
                                         }
@@ -1927,7 +1927,7 @@ private struct QuickAddTaskSheet: View {
                         .textFieldStyle(.plain)
                         .font(.system(.title2).weight(.semibold))
                         .padding(12)
-                        .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 11))
+                        .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: JungoDesign.inputRadius))
                         .onSubmit(createTask)
                     VStack(alignment: .leading, spacing: 6) {
                         Text("ОПИСАНИЕ")
@@ -1939,7 +1939,7 @@ private struct QuickAddTaskSheet: View {
                             .lineLimit(2...4)
                             .font(.subheadline)
                             .padding(10)
-                            .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 9))
+                            .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: JungoDesign.inputRadius))
                     }
                 }
 
@@ -1971,8 +1971,8 @@ private struct QuickAddTaskSheet: View {
                                     }
                                     .padding(.horizontal, 11)
                                     .padding(.vertical, 10)
-                                    .background(isSelected ? Color.accentColor.opacity(0.09) : Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 9))
-                                    .contentShape(RoundedRectangle(cornerRadius: 9))
+                                    .background(isSelected ? Color.accentColor.opacity(0.09) : Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: JungoDesign.inputRadius))
+                                    .contentShape(RoundedRectangle(cornerRadius: JungoDesign.inputRadius))
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityAddTraits(isSelected ? .isSelected : [])
