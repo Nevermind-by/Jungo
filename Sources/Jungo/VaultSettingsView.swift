@@ -3,6 +3,7 @@ import SwiftData
 import AppKit
 
 struct VaultSettingsView: View {
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @State private var isMovingVault = false
     @State private var errorMessage: String?
@@ -15,51 +16,99 @@ struct VaultSettingsView: View {
     }
 
     var body: some View {
-        Form {
-            Section("Локальное хранилище") {
-                LabeledContent("Расположение") {
-                    Text(folderPath)
-                        .textSelection(.enabled)
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                Image(systemName: "externaldrive.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(Color.accentColor)
+                    .frame(width: 42, height: 42)
+                    .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 13))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Хранилище Jungo")
+                        .font(.system(size: 16, weight: .bold))
+                    Text("Локальная база данных и резервное копирование")
+                        .font(.system(size: 11))
                         .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.trailing)
                 }
+                Spacer()
+                Text("LOCAL")
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .tracking(1.3)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(20)
+            .background(.bar)
+            .overlay(alignment: .bottom) { Divider().opacity(0.6) }
 
-                LabeledContent("Файл базы") {
-                    Text(VaultStore.currentStoreURL.lastPathComponent)
-                        .foregroundStyle(.secondary)
-                }
-
-                HStack {
-                    Button("Открыть в Finder", systemImage: "folder") {
-                        VaultStore.openCurrentFolderInFinder()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    JungoSectionSurface("Текущее расположение", subtitle: "Активная база, используемая приложением") {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Label("Папка хранилища", systemImage: "folder")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                            Text(folderPath)
+                                .font(.system(size: 11, design: .monospaced))
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(10)
+                                .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 9))
+                            HStack {
+                                Label(VaultStore.currentStoreURL.lastPathComponent, systemImage: "cylinder.split.1x2")
+                                    .font(.system(size: 11, weight: .medium))
+                                Spacer()
+                                Button("Открыть в Finder", systemImage: "folder") {
+                                    VaultStore.openCurrentFolderInFinder()
+                                }
+                                .controlSize(.small)
+                            }
+                        }
                     }
 
-                    Spacer()
-
-                    Button("Выбрать папку…", systemImage: "folder.badge.gearshape") {
-                        chooseDestinationFolder()
+                    JungoSectionSurface("Перенос хранилища", subtitle: "Перемести локальную базу в другую папку") {
+                        Text("Доски, колонки, задачи, корзина и чек-листы будут перенесены с сохранением ID и связей. Исходная база останется на месте.")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Button("Выбрать новую папку…", systemImage: "folder.badge.gearshape") {
+                            chooseDestinationFolder()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(isMovingVault)
+                        if isMovingVault {
+                            HStack(spacing: 8) {
+                                ProgressView().controlSize(.small)
+                                Text("Перенос данных…")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        Label("После проверки новой базы Jungo завершит работу. Открой приложение снова, чтобы продолжить.", systemImage: "info.circle")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    .disabled(isMovingVault)
+
+                    JungoSectionSurface("Резервная копия", subtitle: "Отдельный файл для переноса или восстановления") {
+                        Label("Используй «Экспорт» на боковой панели, чтобы сохранить JSON-копию досок и задач. Экспорт не меняет расположение активной базы и не заменяет перенос Vault.", systemImage: "archivebox")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
+                .padding(20)
             }
 
-            Section("Перенос данных") {
-                Text("Jungo перенесёт доски, колонки, задачи, корзину и чек-листы в новую локальную базу. ID и связи сохраняются. Исходная база не удаляется.")
-                    .foregroundStyle(.secondary)
-
-                Label("После проверки новой базы приложение завершится. Открой Jungo снова, чтобы продолжить работу с новым расположением.", systemImage: "arrow.clockwise")
-                    .foregroundStyle(.secondary)
+            HStack {
+                Spacer()
+                Button("Готово") { dismiss() }
+                    .keyboardShortcut(.defaultAction)
             }
-
-            Section("Резервная копия") {
-                Text("Для отдельной копии используй «Экспорт» на боковой панели. Экспорт JSON не меняет расположение активной базы и не заменяет перенос хранилища.")
-                    .foregroundStyle(.secondary)
-            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(.bar)
         }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
-        .frame(width: 620, height: 400)
-        .padding(.top, 8)
+        .frame(width: 640, height: 540)
         .background(JungoCanvasBackground())
         .confirmationDialog(
             "Перенести хранилище Jungo?",

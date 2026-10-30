@@ -27,21 +27,23 @@ struct SaveTaskFilterSheet: View {
     let onSave: (String) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Сохранить фильтр").font(.title2.bold())
-            TextField("Название фильтра", text: $name)
-                .textFieldStyle(.roundedBorder)
-                .onSubmit(save)
-            HStack {
-                Spacer()
-                Button("Отмена", role: .cancel) { dismiss() }
-                Button("Сохранить", action: save)
-                    .buttonStyle(.borderedProminent)
-                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        VStack(spacing: 0) {
+            sheetHeader("Сохранить фильтр", subtitle: "Дай набору условий понятное название", symbol: "bookmark")
+            VStack(alignment: .leading, spacing: 12) {
+                JungoSectionSurface("Название фильтра") {
+                    TextField("Например: Срочные задачи", text: $name)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 15, weight: .medium))
+                        .padding(10)
+                        .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 9))
+                        .onSubmit(save)
+                }
             }
+            .padding(20)
+            Spacer(minLength: 0)
+            sheetFooter(cancel: { dismiss() }, confirmTitle: "Сохранить", confirm: save, disabled: name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
-        .padding(24)
-        .frame(width: 380)
+        .frame(width: 430, minHeight: 250, idealHeight: 280)
         .background(JungoCanvasBackground())
     }
 
@@ -60,23 +62,34 @@ struct ManageSavedFiltersSheet: View {
     let onDelete: (SavedTaskFilter) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Сохранённые фильтры").font(.title2.bold())
+        VStack(spacing: 0) {
+            sheetHeader("Сохранённые фильтры", subtitle: "Быстро возвращайся к нужному представлению задач", symbol: "line.3.horizontal.decrease.circle")
             if filters.isEmpty {
                 ContentUnavailableView("Нет фильтров", systemImage: "bookmark", description: Text("Сохрани текущий набор поиска и условий фильтрации."))
-                    .frame(minHeight: 140)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List(filters) { filter in
-                    HStack(spacing: 10) {
+                    HStack(spacing: 12) {
                         Button {
                             onSelect(filter)
                             dismiss()
                         } label: {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(filter.name).font(.body.weight(.medium))
-                                Text(filter.summary).font(.caption).foregroundStyle(.secondary)
+                            HStack(spacing: 11) {
+                                Image(systemName: "line.3.horizontal.decrease.circle.fill")
+                                    .font(.system(size: 18))
+                                    .foregroundStyle(Color.accentColor)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(filter.name).font(.system(size: 12, weight: .semibold))
+                                    Text(filter.summary)
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(2)
+                                }
+                                Spacer()
+                                Image(systemName: "arrow.up.right")
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundStyle(.tertiary)
                             }
-                            .frame(maxWidth: .infinity, alignment: .leading)
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
@@ -84,23 +97,21 @@ struct ManageSavedFiltersSheet: View {
                             onDelete(filter)
                         } label: {
                             Image(systemName: "trash")
+                                .font(.system(size: 12))
+                                .frame(width: 28, height: 28)
                         }
                         .buttonStyle(.borderless)
                         .help("Удалить фильтр «\(filter.name)»")
                     }
-                    .padding(.vertical, 3)
+                    .padding(.vertical, 5)
+                    .listRowBackground(Color.clear)
                 }
                 .listStyle(.inset)
                 .scrollContentBackground(.hidden)
             }
-            HStack {
-                Spacer()
-                Button("Готово") { dismiss() }
-                    .keyboardShortcut(.defaultAction)
-            }
+            sheetFooter(cancel: { dismiss() }, confirmTitle: "Готово", confirm: { dismiss() })
         }
-        .padding(22)
-        .frame(width: 460, height: 380)
+        .frame(width: 510, height: 420)
         .background(JungoCanvasBackground())
     }
 }
@@ -111,18 +122,18 @@ struct LabelColorSettingsSheet: View {
     let labels: [String]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Цвета меток").font(.title2.bold())
-            Text("Цвет применяется ко всем задачам с такой меткой на этом Mac.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+        VStack(spacing: 0) {
+            sheetHeader("Цвета меток", subtitle: "Цвет применяется ко всем задачам с такой меткой на этом Mac", symbol: "paintpalette")
             if labels.isEmpty {
                 ContentUnavailableView("Нет меток", systemImage: "tag", description: Text("Добавь метки задачам, чтобы настроить их цвета."))
-                    .frame(minHeight: 120)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List(labels, id: \.self) { label in
-                    HStack {
-                        Text(label)
+                    HStack(spacing: 12) {
+                        Circle()
+                            .fill(TaskLabelPalette.color(for: label, storedJSON: labelColorsJSON))
+                            .frame(width: 10, height: 10)
+                        Text(label).font(.system(size: 12, weight: .medium))
                         Spacer()
                         Picker("Цвет метки \(label)", selection: colorBinding(for: label)) {
                             Text("Авто").tag("")
@@ -131,9 +142,10 @@ struct LabelColorSettingsSheet: View {
                             }
                         }
                         .labelsHidden()
-                        .frame(width: 140)
+                        .frame(width: 145)
                     }
-                    .padding(.vertical, 2)
+                    .padding(.vertical, 4)
+                    .listRowBackground(Color.clear)
                 }
                 .listStyle(.inset)
                 .scrollContentBackground(.hidden)
@@ -144,10 +156,13 @@ struct LabelColorSettingsSheet: View {
                 Spacer()
                 Button("Готово") { dismiss() }
                     .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 13)
+            .background(.bar)
         }
-        .padding(22)
-        .frame(width: 440, height: 440)
+        .frame(width: 490, height: 450)
         .background(JungoCanvasBackground())
     }
 
@@ -166,6 +181,43 @@ struct LabelColorSettingsSheet: View {
             }
         )
     }
+}
+
+private func sheetHeader(_ title: String, subtitle: String, symbol: String) -> some View {
+    HStack(spacing: 12) {
+        Image(systemName: symbol)
+            .font(.system(size: 17, weight: .semibold))
+            .foregroundStyle(Color.accentColor)
+            .frame(width: 40, height: 40)
+            .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(.system(size: 15, weight: .bold))
+            Text(subtitle).font(.system(size: 10)).foregroundStyle(.secondary)
+        }
+        Spacer()
+        Text("JUNGO")
+            .font(.system(size: 9, weight: .bold, design: .rounded))
+            .tracking(1.4)
+            .foregroundStyle(.tertiary)
+    }
+    .padding(20)
+    .background(.bar)
+    .overlay(alignment: .bottom) { Divider().opacity(0.6) }
+}
+
+private func sheetFooter(cancel: @escaping () -> Void, confirmTitle: String, confirm: @escaping () -> Void, disabled: Bool = false) -> some View {
+    HStack {
+        Spacer()
+        Button("Отмена", role: .cancel, action: cancel)
+            .keyboardShortcut(.cancelAction)
+        Button(confirmTitle, action: confirm)
+            .keyboardShortcut(.defaultAction)
+            .buttonStyle(.borderedProminent)
+            .disabled(disabled)
+    }
+    .padding(.horizontal, 20)
+    .padding(.vertical, 13)
+    .background(.bar)
 }
 
 enum TaskLabelPalette {
