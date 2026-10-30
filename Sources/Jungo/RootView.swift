@@ -754,18 +754,15 @@ struct RootView: View {
             action: { identifiers, _ in
                 acceptTaskDrop(identifiers, in: column, before: nil)
             },
-            isTargeted: Binding(
-                get: { targetedDropColumnID == column.id },
-                set: { isTargeted in
-                    if isTargeted {
-                        targetedDropColumnID = column.id
-                        targetedDropTaskID = nil
-                    } else if targetedDropColumnID == column.id {
-                        targetedDropColumnID = nil
-                        targetedDropTaskID = nil
-                    }
+            isTargeted: { isTargeted in
+                if isTargeted {
+                    targetedDropColumnID = column.id
+                    targetedDropTaskID = nil
+                } else if targetedDropColumnID == column.id {
+                    targetedDropColumnID = nil
+                    targetedDropTaskID = nil
                 }
-            )
+            }
         )
     }
 
@@ -775,17 +772,14 @@ struct RootView: View {
         checklistItems: [TaskChecklistItem],
         moveNamespace: Namespace.ID
     ) -> some View {
-        let dropTarget = Binding<Bool>(
-            get: { targetedDropTaskID == task.id },
-            set: { isTargeted in
-                if isTargeted {
-                    targetedDropTaskID = task.id
-                    targetedDropColumnID = column.id
-                } else if targetedDropTaskID == task.id {
-                    targetedDropTaskID = nil
-                }
+        let dropTarget: (Bool) -> Void = { isTargeted in
+            if isTargeted {
+                targetedDropTaskID = task.id
+                targetedDropColumnID = column.id
+            } else if targetedDropTaskID == task.id {
+                targetedDropTaskID = nil
             }
-        )
+        }
 
         let cardButton = Button {
             selectedTask = task
