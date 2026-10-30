@@ -1704,37 +1704,129 @@ private struct QuickAddTaskSheet: View {
         _selectedColumnID = State(initialValue: initialColumnID)
     }
 
+    private var normalizedTitle: String {
+        title.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Быстро добавить задачу").font(.title2.bold())
-            TextField("Название задачи", text: $title)
-                .textFieldStyle(.roundedBorder)
-                .font(.title3)
-            TextField("Описание (необязательно)", text: $details)
-                .textFieldStyle(.roundedBorder)
-            Picker("Колонка", selection: $selectedColumnID) {
-                ForEach(columns) { column in
-                    Text(column.title).tag(Optional(column.id))
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.accentColor.opacity(0.12))
+                    Image(systemName: "bolt.fill")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(Color.accentColor)
+                }
+                .frame(width: 40, height: 40)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Быстрое добавление")
+                        .font(.system(size: 16, weight: .bold))
+                    Text("Запиши задачу и возвращайся к работе")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text("JUNGO")
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .tracking(1.5)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(20)
+            .background(.bar)
+            .overlay(alignment: .bottom) { Divider().opacity(0.6) }
+
+            VStack(alignment: .leading, spacing: 16) {
+                JungoSectionSurface("Новая задача", subtitle: "Начни с короткого и понятного названия") {
+                    TextField("Что нужно сделать?", text: $title)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 19, weight: .semibold))
+                        .padding(12)
+                        .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 11))
+                        .onSubmit(createTask)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("ОПИСАНИЕ")
+                            .font(.system(size: 9, weight: .bold))
+                            .tracking(0.8)
+                            .foregroundStyle(.tertiary)
+                        TextField("Добавь контекст (необязательно)", text: $details, axis: .vertical)
+                            .textFieldStyle(.plain)
+                            .lineLimit(2...4)
+                            .font(.system(size: 12))
+                            .padding(10)
+                            .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 9))
+                    }
+                }
+
+                JungoSectionSurface("Куда добавить", subtitle: "Задача появится в выбранной колонке") {
+                    if columns.isEmpty {
+                        ContentUnavailableView("Нет доступных колонок", systemImage: "rectangle.split.3x1")
+                    } else {
+                        VStack(spacing: 6) {
+                            ForEach(columns) { column in
+                                let isSelected = selectedColumnID == column.id
+                                Button {
+                                    selectedColumnID = column.id
+                                } label: {
+                                    HStack(spacing: 10) {
+                                        Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
+                                            .font(.system(size: 15))
+                                            .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+                                        Text(column.title)
+                                            .font(.system(size: 12, weight: isSelected ? .semibold : .medium))
+                                            .foregroundStyle(.primary)
+                                        Spacer()
+                                        if isSelected {
+                                            Text("Выбрано")
+                                                .font(.system(size: 10, weight: .medium))
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                    .padding(.horizontal, 11)
+                                    .padding(.vertical, 10)
+                                    .background(isSelected ? Color.accentColor.opacity(0.09) : Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 9))
+                                    .contentShape(RoundedRectangle(cornerRadius: 9))
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityAddTraits(isSelected ? .isSelected : [])
+                            }
+                        }
+                    }
                 }
             }
-            .disabled(columns.isEmpty)
+            .padding(20)
+
+            Divider().opacity(0.65)
             HStack {
+                Text("⌘↩︎")
+                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(.tertiary)
+                Text("создать")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
                 Spacer()
                 Button("Отмена", role: .cancel) { dismiss() }
-                Button("Создать") {
-                    guard let selectedColumnID, onCreate(title, details, selectedColumnID) else { return }
-                    dismiss()
-                }
-                .keyboardShortcut(.defaultAction)
-                .buttonStyle(.borderedProminent)
-                .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || selectedColumnID == nil)
+                    .keyboardShortcut(.cancelAction)
+                Button("Создать задачу", systemImage: "plus", action: createTask)
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(normalizedTitle.isEmpty || selectedColumnID == nil)
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 13)
+            .background(.bar)
         }
-        .padding(26)
-        .frame(width: 460)
+        .frame(width: 500, minHeight: 490, idealHeight: 560)
         .background(JungoCanvasBackground())
         .onAppear {
             if selectedColumnID == nil { selectedColumnID = columns.first?.id }
         }
+    }
+
+    private func createTask() {
+        guard !normalizedTitle.isEmpty,
+              let selectedColumnID,
+              onCreate(normalizedTitle, details.trimmingCharacters(in: .whitespacesAndNewlines), selectedColumnID) else { return }
+        dismiss()
     }
 }
