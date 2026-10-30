@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 
 struct RootView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.openWindow) private var openWindow
     @Query(sort: \Board.sortOrder) private var boards: [Board]
     @Query(sort: \BoardColumn.sortOrder) private var allColumns: [BoardColumn]
@@ -34,8 +35,11 @@ struct RootView: View {
     @State private var showLabelColorSettings = false
     @State private var showTrash = false
     @FocusState private var isSearchFocused: Bool
+    @FocusState private var focusedTaskID: UUID?
     @State private var errorMessage: String?
     @State private var statusMessage: String?
+    @State private var targetedDropColumnID: UUID?
+    @State private var targetedDropTaskID: UUID?
     @Namespace private var taskMoveNamespace
 
     private enum PriorityFilter: String, CaseIterable, Identifiable {
@@ -182,6 +186,13 @@ struct RootView: View {
         .onChange(of: selectedBoardID) { _, newValue in
             if let newValue { persistedSelectedBoardID = newValue.uuidString }
             selectedLabel = ""
+            targetedDropColumnID = nil
+            targetedDropTaskID = nil
+        }
+        .onChange(of: showTrash) { _, _ in
+            targetedDropColumnID = nil
+            targetedDropTaskID = nil
+            focusedTaskID = nil
         }
         .onReceive(NotificationCenter.default.publisher(for: .jungoCreateTask)) { _ in
             guard !showTrash, let column = visibleColumns.first else { return }
@@ -632,7 +643,8 @@ struct RootView: View {
                     .frame(width: 4, height: 19)
                 Text(column.title)
                     .font(.system(size: 13, weight: .semibold))
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text("\(columnTasks.count)")
                     .font(.system(size: 10, weight: .semibold).monospacedDigit())
                     .foregroundStyle(.secondary)
@@ -668,6 +680,12 @@ struct RootView: View {
                         .font(.title2)
                     Text(hasTasksBeforeFilters && hasActiveFilters ? "Нет совпадений" : "Пусто")
                         .font(.subheadline.weight(.medium))
+                    if targetedDropColumnID == column.id && !hasActiveFilters {
+                        Label("Отпустите, чтобы переместить", systemImage: "arrow.down.to.line")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(Color.accentColor)
+                            .transition(.opacity)
+                    }
                     if hasTasksBeforeFilters && hasActiveFilters {
                         Button("Сбросить фильтры", action: clearFilters)
                             .buttonStyle(.bordered)
@@ -692,17 +710,54 @@ struct RootView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(taskAccessibilitySummary(for: task, checklistItems: checklistItemsByTask[task.id] ?? []))
-                .accessibilityHint("Используй стрелки, чтобы менять порядок задачи или перемещать её между колонками.")
+                .accessibilityHint("Используй стрелки вверх и вниз для изменения порядка, влево и вправо — для переноса между колонками.")
+                .accessibilityAction(named: Text("Переместить вверх")) { moveTask(task, using: .up) }
+                .accessibilityAction(named: Text("Переместить вниз")) { moveTask(task, using: .down) }
+                .accessibilityAction(named: Text("Переместить в предыдущую колонку")) { moveTask(task, using: .left) }
+                .accessibilityAction(named: Text("Переместить в следующую колонку")) { moveTask(task, using: .right) }
+                .focused($focusedTaskID, equals: task.id)
+                .focusable()
+                .overlay {
+                    if focusedTaskID == task.id {
+                        RoundedRectangle(cornerRadius: JungoDesign.cardRadius, style: .continuous)
+                            .strokeBorder(Color.accentColor.opacity(0.9), lineWidth: JungoDesign.focusRingWidth)
+                            .padding(1)
+                            .allowsHitTesting(false)
+                    }
+                }
                 .onMoveCommand { direction in
                     moveTask(task, using: direction)
                 }
                 .draggable(task.id.uuidString)
-                    .dropDestination(for: String.self) { identifiers, _ in
-                        guard let rawID = identifiers.first, let draggedID = UUID(uuidString: rawID) else { return false }
-                        moveTask(draggedID, to: column, before: task.id)
-                        return true
+                .overlay(alignment: .top) {
+                    if targetedDropTaskID == task.id {
+                        Capsule()
+                            .fill(Color.accentColor)
+                            .frame(height: JungoDesign.dragIndicatorHeight)
+                            .padding(.horizontal, 7)
+                            .offset(y: -2)
+                            .shadow(color: Color.accentColor.opacity(0.25), radius: 3, y: 1)
+                            .accessibilityHidden(true)
                     }
-                    .contextMenu {
+                }
+                .dropDestination(
+                    for: String.self,
+                    action: { identifiers, _ in
+                        acceptTaskDrop(identifiers, in: column, before: task.id)
+                    },
+                    isTargeted: Binding(
+                        get: { targetedDropTaskID == task.id },
+                        set: { isTargeted in
+                            if isTargeted {
+                                targetedDropTaskID = task.id
+                                targetedDropColumnID = column.id
+                            } else if targetedDropTaskID == task.id {
+                                targetedDropTaskID = nil
+                            }
+                        }
+                    )
+                )
+                .contextMenu {
                         Button("Редактировать") { selectedTask = task }
                         Button("Дублировать задачу", systemImage: "plus.square.on.square") {
                             duplicateTask(task)
@@ -740,13 +795,41 @@ struct RootView: View {
         }
         .padding(12)
         .frame(maxHeight: .infinity, alignment: .top)
-        .jungoTaskSurface(radius: 20)
-        .animation(.snappy(duration: 0.28), value: columnTasks.map(\.id))
-        .dropDestination(for: String.self) { identifiers, _ in
-            guard let rawID = identifiers.first, let draggedID = UUID(uuidString: rawID) else { return false }
-            moveTask(draggedID, to: column, before: nil)
-            return true
+        .background {
+            RoundedRectangle(cornerRadius: JungoDesign.columnRadius, style: .continuous)
+                .fill(Color.accentColor.opacity(targetedDropColumnID == column.id ? 0.055 : 0))
+                .padding(1)
         }
+        .jungoTaskSurface(radius: JungoDesign.columnRadius)
+        .overlay {
+            RoundedRectangle(cornerRadius: JungoDesign.columnRadius, style: .continuous)
+                .strokeBorder(
+                    Color.accentColor.opacity(targetedDropColumnID == column.id ? 0.72 : 0),
+                    lineWidth: targetedDropColumnID == column.id ? 2 : 0
+                )
+                .padding(1)
+                .allowsHitTesting(false)
+        }
+        .animation(reduceMotion ? nil : .snappy(duration: 0.18), value: targetedDropColumnID)
+        .animation(reduceMotion ? nil : .snappy(duration: 0.28), value: columnTasks.map(\.id))
+        .dropDestination(
+            for: String.self,
+            action: { identifiers, _ in
+                acceptTaskDrop(identifiers, in: column, before: nil)
+            },
+            isTargeted: Binding(
+                get: { targetedDropColumnID == column.id },
+                set: { isTargeted in
+                    if isTargeted {
+                        targetedDropColumnID = column.id
+                        targetedDropTaskID = nil
+                    } else if targetedDropColumnID == column.id {
+                        targetedDropColumnID = nil
+                        targetedDropTaskID = nil
+                    }
+                }
+            )
+        )
     }
 
     private func tasks(in column: BoardColumn, candidates: [TaskCard]? = nil) -> [TaskCard] {
@@ -894,6 +977,15 @@ struct RootView: View {
         return true
     }
 
+    private func acceptTaskDrop(_ identifiers: [String], in destination: BoardColumn, before targetID: UUID?) -> Bool {
+        guard let rawID = identifiers.first,
+              let draggedID = UUID(uuidString: rawID) else { return false }
+        moveTask(draggedID, to: destination, before: targetID)
+        targetedDropTaskID = nil
+        targetedDropColumnID = nil
+        return true
+    }
+
     private func moveTask(_ taskID: UUID, to destination: BoardColumn, before targetID: UUID?) {
         guard let task = allTasks.first(where: { $0.id == taskID }),
               !task.isInTrash,
@@ -934,7 +1026,7 @@ struct RootView: View {
         // Animate the model update as one coordinated move. A short spring
         // lets the source and destination columns settle together without the
         // long, bouncy motion that makes a Kanban board feel sluggish.
-        withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+        withAnimation(reduceMotion ? nil : .spring(response: 0.28, dampingFraction: 0.88)) {
             if !isReorderingWithinColumn {
                 task.columnID = destination.id
             }
@@ -1273,6 +1365,9 @@ struct RootView: View {
 
 private struct TaskCardView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ScaledMetric(relativeTo: .body) private var titleFontSize: CGFloat = 14
+    @ScaledMetric(relativeTo: .footnote) private var detailFontSize: CGFloat = 11.5
+    @ScaledMetric(relativeTo: .caption) private var metadataFontSize: CGFloat = 10
     @State private var isHovering = false
 
     let task: TaskCard
@@ -1305,7 +1400,7 @@ private struct TaskCardView: View {
         VStack(alignment: .leading, spacing: 11) {
             HStack(spacing: 6) {
                 Label(task.priority.title, systemImage: task.priority.symbol)
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(size: metadataFontSize, weight: .semibold))
                     .foregroundStyle(priorityTint)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
@@ -1319,7 +1414,7 @@ private struct TaskCardView: View {
                     } icon: {
                         Image(systemName: "calendar")
                     }
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.system(size: metadataFontSize, weight: .medium))
                     .foregroundStyle(isOverdue ? .red : .secondary)
                     .padding(.horizontal, 7)
                     .padding(.vertical, 4)
@@ -1329,7 +1424,7 @@ private struct TaskCardView: View {
             }
 
             Text(task.title)
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: titleFontSize, weight: .semibold))
                 .foregroundStyle(.primary)
                 .lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)
@@ -1337,10 +1432,11 @@ private struct TaskCardView: View {
 
             if !task.details.isEmpty {
                 Text(task.details)
-                    .font(.system(size: 11.5))
+                    .font(.system(size: detailFontSize))
                     .foregroundStyle(.secondary)
                     .lineSpacing(2)
-                    .lineLimit(3)
+                    .lineLimit(4)
+                    .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
@@ -1360,12 +1456,12 @@ private struct TaskCardView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 6) {
                         Image(systemName: "checklist")
-                            .font(.system(size: 10, weight: .medium))
+                            .font(.system(size: metadataFontSize, weight: .medium))
                         Text("Чек-лист")
-                            .font(.system(size: 10, weight: .medium))
+                            .font(.system(size: metadataFontSize, weight: .medium))
                         Spacer()
                         Text("\(completedChecklistCount) из \(checklistItems.count)")
-                            .font(.system(size: 10, weight: .semibold).monospacedDigit())
+                            .font(.system(size: metadataFontSize, weight: .semibold).monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
                     ProgressView(value: Double(completedChecklistCount), total: Double(checklistItems.count))
@@ -1380,16 +1476,16 @@ private struct TaskCardView: View {
                     Image(systemName: "clock")
                         .font(.system(size: 9))
                     Text(task.createdAt, format: .dateTime.month(.abbreviated).day())
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.system(size: metadataFontSize, weight: .medium))
                 }
                 .foregroundStyle(.tertiary)
             }
         }
         .padding(13)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .jungoTaskSurface(radius: 15)
+        .jungoTaskSurface(radius: JungoDesign.cardRadius)
         .overlay {
-            RoundedRectangle(cornerRadius: 15, style: .continuous)
+            RoundedRectangle(cornerRadius: JungoDesign.cardRadius, style: .continuous)
                 .strokeBorder(Color.accentColor.opacity(isHovering ? 0.38 : 0), lineWidth: 1)
                 .allowsHitTesting(false)
         }
@@ -1412,7 +1508,7 @@ private struct TaskCardView: View {
                     .padding(.leading, 1)
             }
         }
-        .contentShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: JungoDesign.cardRadius, style: .continuous))
         .matchedGeometryEffect(id: task.id, in: moveNamespace, properties: .frame)
     }
 }
