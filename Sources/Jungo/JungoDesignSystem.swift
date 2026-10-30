@@ -10,6 +10,7 @@ enum JungoDesign {
     static let focusRingWidth: CGFloat = 2
     static let dragIndicatorHeight: CGFloat = 3
     static let controlRadius: CGFloat = 12
+    static let inputRadius: CGFloat = 10
     static let sectionRadius: CGFloat = 18
     static let contentSpacing: CGFloat = 18
     static let compactSpacing: CGFloat = 10
