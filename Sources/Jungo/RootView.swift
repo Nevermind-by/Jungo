@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import AppKit
 import UniformTypeIdentifiers
+import JungoCore
 
 struct RootView: View {
     @Environment(\.modelContext) private var modelContext
@@ -1350,10 +1351,8 @@ struct RootView: View {
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             let archive = JungoArchive.capture(boards: boards, columns: allColumns, tasks: allTasks, checklistItems: allChecklistItems)
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            encoder.dateEncodingStrategy = .iso8601
-            try encoder.encode(archive).write(to: url, options: .atomic)
+            let data = try JungoArchiveCodec.encode(archive)
+            try data.write(to: url, options: .atomic)
             statusMessage = "Экспорт завершён: \(url.lastPathComponent)"
         } catch {
             errorMessage = "Не удалось экспортировать данные: \(error.localizedDescription)"
@@ -1368,9 +1367,8 @@ struct RootView: View {
         panel.title = "Импортировать архив Jungo"
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            let archive = try decoder.decode(JungoArchive.self, from: Data(contentsOf: url))
+            let data = try Data(contentsOf: url)
+            let archive = try JungoArchiveCodec.decode(data)
             let importedBoardID = try archive.importInto(modelContext)
             if let importedBoardID {
                 selectedBoardID = importedBoardID
