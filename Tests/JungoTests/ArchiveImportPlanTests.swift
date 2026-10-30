@@ -44,8 +44,8 @@ final class ArchiveImportPlanTests: XCTestCase {
 
         let plan = try JungoArchiveImportPlan.build(from: archive, nextBoardSortOrder: 8)
 
-        XCTAssertEqual(plan.boards.map(\\.sortOrder), [8, 9])
-        XCTAssertEqual(plan.boards.map(\\.title), ["Active board", "Archived board"])
+        XCTAssertEqual(plan.boards.map(\.sortOrder), [8, 9])
+        XCTAssertEqual(plan.boards.map(\.title), ["Active board", "Archived board"])
         XCTAssertEqual(plan.boards.last?.isArchived, true)
         XCTAssertEqual(plan.columns.count, 2)
         XCTAssertEqual(plan.tasks.first?.priorityRawValue, "critical_v2")
@@ -68,10 +68,10 @@ final class ArchiveImportPlanTests: XCTestCase {
         XCTAssertEqual(importedChecklistA.taskID, importedTaskA.id)
         XCTAssertEqual(plan.lastImportedBoardID, plan.boards.last?.id)
 
-        let generatedIDs = plan.boards.map(\\.id)
-            + plan.columns.map(\\.id)
-            + plan.tasks.map(\\.id)
-            + plan.checklistItems.map(\\.id)
+        let generatedIDs = plan.boards.map(\.id)
+            + plan.columns.map(\.id)
+            + plan.tasks.map(\.id)
+            + plan.checklistItems.map(\.id)
         XCTAssertEqual(Set(generatedIDs).count, generatedIDs.count)
     }
 
