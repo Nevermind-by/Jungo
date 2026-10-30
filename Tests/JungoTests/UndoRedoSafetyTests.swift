@@ -75,7 +75,7 @@ final class UndoRedoSafetyTests: XCTestCase {
 
     func testUndoAndRedoRestoreTaskMoveAcrossColumns() async throws {
         try await MainActor.run {
-            let (_, context, undoManager) = try makeContext()
+            let (_, context, undoManager) = try Self.makeContext()
             let board = Board(title: "Board")
             let source = BoardColumn(title: "Todo", sortOrder: 0, boardID: board.id)
             let destination = BoardColumn(title: "Doing", sortOrder: 1, boardID: board.id)
@@ -106,7 +106,7 @@ final class UndoRedoSafetyTests: XCTestCase {
 
     func testUndoAndRedoRestoreTrashStateWithoutDeletingTask() async throws {
         try await MainActor.run {
-            let (_, context, undoManager) = try makeContext()
+            let (_, context, undoManager) = try Self.makeContext()
             let board = Board(title: "Board")
             let column = BoardColumn(title: "Todo", sortOrder: 0, boardID: board.id)
             let task = TaskCard(title: "Recoverable task", columnID: column.id)
