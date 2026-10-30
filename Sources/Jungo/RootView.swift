@@ -1521,6 +1521,7 @@ private struct ChecklistDraft: Identifiable {
 
 private struct TaskEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \TaskChecklistItem.sortOrder) private var allChecklistItems: [TaskChecklistItem]
 
@@ -1668,10 +1669,10 @@ private struct TaskEditorSheet: View {
                                 DatePicker("Выполнить до", selection: $draftDueDate, displayedComponents: .date)
                                     .datePickerStyle(.compact)
                                     .padding(.leading, 25)
-                                    .transition(.opacity.combined(with: .move(edge: .top)))
+                                    .transition(reduceMotion ? .identity : .opacity.combined(with: .move(edge: .top)))
                             }
                         }
-                        .animation(.snappy(duration: 0.2), value: draftHasDueDate)
+                        .animation(reduceMotion ? nil : .snappy(duration: 0.2), value: draftHasDueDate)
                     }
 
                     JungoSectionSurface("Чек-лист", subtitle: "Разбей работу на небольшие шаги") {
