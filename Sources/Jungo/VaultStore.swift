@@ -292,6 +292,12 @@ enum VaultStore {
             checklistItems: checklistItems
         )
 
+        // Retain source ID sets for the post-copy equality check below.
+        let boardIDs = Set(boards.map(\.id))
+        let columnIDs = Set(columns.map(\.id))
+        let taskIDs = Set(tasks.map(\.id))
+        let checklistIDs = Set(checklistItems.map(\.id))
+
         let targetConfiguration = ModelConfiguration(
             "JungoVault",
             schema: schema,
