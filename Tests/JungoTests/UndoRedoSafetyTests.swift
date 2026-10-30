@@ -16,116 +16,111 @@ final class UndoRedoSafetyTests: XCTestCase {
         return (container, context, undoManager)
     }
 
+    @MainActor
     func testUndoAndRedoRestoreCascadeDeletedBoardGraph() async throws {
-        try await MainActor.run {
-            let (_, context, undoManager) = try Self.makeContext()
-            let board = Board(title: "Board")
-            let column = BoardColumn(title: "Todo", sortOrder: 0, boardID: board.id)
-            let task = TaskCard(title: "Task", columnID: column.id)
-            let checklist = TaskChecklistItem(title: "Step", sortOrder: 0, taskID: task.id)
+        let (_, context, undoManager) = try Self.makeContext()
+        let board = Board(title: "Board")
+        let column = BoardColumn(title: "Todo", sortOrder: 0, boardID: board.id)
+        let task = TaskCard(title: "Task", columnID: column.id)
+        let checklist = TaskChecklistItem(title: "Step", sortOrder: 0, taskID: task.id)
 
-            context.insert(board)
-            context.insert(column)
-            context.insert(task)
-            context.insert(checklist)
-            try context.save()
-            undoManager.removeAllActions()
+        context.insert(board)
+        context.insert(column)
+        context.insert(task)
+        context.insert(checklist)
+        try context.save()
+        undoManager.removeAllActions()
 
-            // Mirror one user action as a single explicit undo group.
-            undoManager.beginUndoGrouping()
-            // Mirrors deleteSelectedBoard(): remove children before their parents.
-            context.delete(checklist)
-            context.delete(task)
-            context.delete(column)
-            context.delete(board)
-            try context.save()
-            undoManager.endUndoGrouping()
+        undoManager.beginUndoGrouping()
+        context.delete(checklist)
+        context.delete(task)
+        context.delete(column)
+        context.delete(board)
+        try context.save()
+        undoManager.endUndoGrouping()
 
-            XCTAssertEqual(try context.fetch(FetchDescriptor<Board>()).count, 0)
-            XCTAssertEqual(try context.fetch(FetchDescriptor<BoardColumn>()).count, 0)
-            XCTAssertEqual(try context.fetch(FetchDescriptor<TaskCard>()).count, 0)
-            XCTAssertEqual(try context.fetch(FetchDescriptor<TaskChecklistItem>()).count, 0)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<Board>()).count, 0)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<BoardColumn>()).count, 0)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<TaskCard>()).count, 0)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<TaskChecklistItem>()).count, 0)
 
-            undoManager.undo()
+        undoManager.undo()
 
-            let restoredBoards = try context.fetch(FetchDescriptor<Board>())
-            let restoredColumns = try context.fetch(FetchDescriptor<BoardColumn>())
-            let restoredTasks = try context.fetch(FetchDescriptor<TaskCard>())
-            let restoredChecklist = try context.fetch(FetchDescriptor<TaskChecklistItem>())
+        let restoredBoards = try context.fetch(FetchDescriptor<Board>())
+        let restoredColumns = try context.fetch(FetchDescriptor<BoardColumn>())
+        let restoredTasks = try context.fetch(FetchDescriptor<TaskCard>())
+        let restoredChecklist = try context.fetch(FetchDescriptor<TaskChecklistItem>())
 
-            XCTAssertEqual(restoredBoards.map(\.id), [board.id])
-            XCTAssertEqual(restoredColumns.map(\.id), [column.id])
-            XCTAssertEqual(restoredTasks.map(\.id), [task.id])
-            XCTAssertEqual(restoredChecklist.map(\.id), [checklist.id])
-            XCTAssertEqual(restoredColumns.first?.boardID, board.id)
-            XCTAssertEqual(restoredTasks.first?.columnID, column.id)
-            XCTAssertEqual(restoredChecklist.first?.taskID, task.id)
+        XCTAssertEqual(restoredBoards.map(\.id), [board.id])
+        XCTAssertEqual(restoredColumns.map(\.id), [column.id])
+        XCTAssertEqual(restoredTasks.map(\.id), [task.id])
+        XCTAssertEqual(restoredChecklist.map(\.id), [checklist.id])
+        XCTAssertEqual(restoredColumns.first?.boardID, board.id)
+        XCTAssertEqual(restoredTasks.first?.columnID, column.id)
+        XCTAssertEqual(restoredChecklist.first?.taskID, task.id)
 
-            undoManager.redo()
+        undoManager.redo()
 
-            XCTAssertEqual(try context.fetch(FetchDescriptor<Board>()).count, 0)
-            XCTAssertEqual(try context.fetch(FetchDescriptor<BoardColumn>()).count, 0)
-            XCTAssertEqual(try context.fetch(FetchDescriptor<TaskCard>()).count, 0)
-            XCTAssertEqual(try context.fetch(FetchDescriptor<TaskChecklistItem>()).count, 0)
-        }
+        XCTAssertEqual(try context.fetch(FetchDescriptor<Board>()).count, 0)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<BoardColumn>()).count, 0)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<TaskCard>()).count, 0)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<TaskChecklistItem>()).count, 0)
     }
 
+    @MainActor
     func testUndoAndRedoRestoreTaskMoveAcrossColumns() async throws {
-        try await MainActor.run {
-            let (_, context, undoManager) = try Self.makeContext()
-            let board = Board(title: "Board")
-            let source = BoardColumn(title: "Todo", sortOrder: 0, boardID: board.id)
-            let destination = BoardColumn(title: "Doing", sortOrder: 1, boardID: board.id)
-            let task = TaskCard(title: "Move me", sortOrder: 0, columnID: source.id)
+        let (_, context, undoManager) = try Self.makeContext()
+        let board = Board(title: "Board")
+        let source = BoardColumn(title: "Todo", sortOrder: 0, boardID: board.id)
+        let destination = BoardColumn(title: "Doing", sortOrder: 1, boardID: board.id)
+        let task = TaskCard(title: "Move me", sortOrder: 0, columnID: source.id)
 
-            context.insert(board)
-            context.insert(source)
-            context.insert(destination)
-            context.insert(task)
-            try context.save()
-            undoManager.removeAllActions()
+        context.insert(board)
+        context.insert(source)
+        context.insert(destination)
+        context.insert(task)
+        try context.save()
+        undoManager.removeAllActions()
 
-            undoManager.beginUndoGrouping()
-            task.columnID = destination.id
-            task.sortOrder = 0
-            try context.save()
-            undoManager.endUndoGrouping()
+        undoManager.beginUndoGrouping()
+        task.columnID = destination.id
+        task.sortOrder = 0
+        try context.save()
+        undoManager.endUndoGrouping()
 
-            undoManager.undo()
-            XCTAssertEqual(task.columnID, source.id)
-            XCTAssertEqual(task.sortOrder, 0)
+        undoManager.undo()
+        XCTAssertEqual(task.columnID, source.id)
+        XCTAssertEqual(task.sortOrder, 0)
 
-            undoManager.redo()
-            XCTAssertEqual(task.columnID, destination.id)
-            XCTAssertEqual(task.sortOrder, 0)
-        }
+        undoManager.redo()
+        XCTAssertEqual(task.columnID, destination.id)
+        XCTAssertEqual(task.sortOrder, 0)
     }
 
+    @MainActor
     func testUndoAndRedoRestoreTrashStateWithoutDeletingTask() async throws {
-        try await MainActor.run {
-            let (_, context, undoManager) = try Self.makeContext()
-            let board = Board(title: "Board")
-            let column = BoardColumn(title: "Todo", sortOrder: 0, boardID: board.id)
-            let task = TaskCard(title: "Recoverable task", columnID: column.id)
+        let (_, context, undoManager) = try Self.makeContext()
+        let board = Board(title: "Board")
+        let column = BoardColumn(title: "Todo", sortOrder: 0, boardID: board.id)
+        let task = TaskCard(title: "Recoverable task", columnID: column.id)
 
-            context.insert(board)
-            context.insert(column)
-            context.insert(task)
-            try context.save()
-            undoManager.removeAllActions()
+        context.insert(board)
+        context.insert(column)
+        context.insert(task)
+        try context.save()
+        undoManager.removeAllActions()
 
-            undoManager.beginUndoGrouping()
-            task.isInTrash = true
-            try context.save()
-            undoManager.endUndoGrouping()
+        undoManager.beginUndoGrouping()
+        task.isInTrash = true
+        try context.save()
+        undoManager.endUndoGrouping()
 
-            undoManager.undo()
-            XCTAssertFalse(task.isInTrash)
-            XCTAssertEqual(try context.fetch(FetchDescriptor<TaskCard>()).count, 1)
+        undoManager.undo()
+        XCTAssertFalse(task.isInTrash)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<TaskCard>()).count, 1)
 
-            undoManager.redo()
-            XCTAssertTrue(task.isInTrash)
-            XCTAssertEqual(try context.fetch(FetchDescriptor<TaskCard>()).count, 1)
-        }
+        undoManager.redo()
+        XCTAssertTrue(task.isInTrash)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<TaskCard>()).count, 1)
     }
 }
