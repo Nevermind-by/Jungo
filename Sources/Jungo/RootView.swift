@@ -701,77 +701,12 @@ struct RootView: View {
                 // once the column has content. Avoid repeating three CTAs.
             }
             ForEach(columnTasks) { task in
-                Button {
-                    selectedTask = task
-                } label: {
-                    TaskCardView(
-                        task: task,
-                        checklistItems: checklistItemsByTask[task.id] ?? [],
-                        moveNamespace: taskMoveNamespace
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(taskAccessibilitySummary(for: task, checklistItems: checklistItemsByTask[task.id] ?? []))
-                .accessibilityHint("Используй стрелки вверх и вниз для изменения порядка, влево и вправо — для переноса между колонками.")
-                .accessibilityAction(named: Text("Переместить вверх")) { moveTask(task, using: .up) }
-                .accessibilityAction(named: Text("Переместить вниз")) { moveTask(task, using: .down) }
-                .accessibilityAction(named: Text("Переместить в предыдущую колонку")) { moveTask(task, using: .left) }
-                .accessibilityAction(named: Text("Переместить в следующую колонку")) { moveTask(task, using: .right) }
-                .focused($focusedTaskID, equals: task.id)
-                .focusable()
-                .overlay {
-                    if focusedTaskID == task.id {
-                        RoundedRectangle(cornerRadius: JungoDesign.cardRadius, style: .continuous)
-                            .strokeBorder(Color.accentColor.opacity(0.9), lineWidth: JungoDesign.focusRingWidth)
-                            .padding(1)
-                            .allowsHitTesting(false)
-                    }
-                }
-                .onMoveCommand { direction in
-                    moveTask(task, using: direction)
-                }
-                .draggable(task.id.uuidString)
-                .overlay(alignment: .top) {
-                    if targetedDropTaskID == task.id {
-                        Capsule()
-                            .fill(Color.accentColor)
-                            .frame(height: JungoDesign.dragIndicatorHeight)
-                            .padding(.horizontal, 7)
-                            .offset(y: -2)
-                            .shadow(color: Color.accentColor.opacity(0.25), radius: 3, y: 1)
-                            .accessibilityHidden(true)
-                    }
-                }
-                .dropDestination(
-                    for: String.self,
-                    action: { identifiers, _ in
-                        acceptTaskDrop(identifiers, in: column, before: task.id)
-                    },
-                    isTargeted: Binding(
-                        get: { targetedDropTaskID == task.id },
-                        set: { isTargeted in
-                            if isTargeted {
-                                targetedDropTaskID = task.id
-                                targetedDropColumnID = column.id
-                            } else if targetedDropTaskID == task.id {
-                                targetedDropTaskID = nil
-                            }
-                        }
-                    )
+                taskCardButton(
+                    task,
+                    in: column,
+                    checklistItems: checklistItemsByTask[task.id] ?? [],
+                    moveNamespace: taskMoveNamespace
                 )
-                .contextMenu {
-                        Button("Редактировать") { selectedTask = task }
-                        Button("Дублировать задачу", systemImage: "plus.square.on.square") {
-                            duplicateTask(task)
-                        }
-                        Menu("Переместить в") {
-                            ForEach(visibleColumns.filter { $0.id != column.id }) { destination in
-                                Button(destination.title) { moveTask(task.id, to: destination, before: nil) }
-                            }
-                        }
-                        Divider()
-                        Button("Удалить…", role: .destructive) { taskPendingDeletionID = task.id }
-                    }
             }
             if !hasActiveFilters {
                 Button {
@@ -819,19 +754,109 @@ struct RootView: View {
             action: { identifiers, _ in
                 acceptTaskDrop(identifiers, in: column, before: nil)
             },
-            isTargeted: Binding(
-                get: { targetedDropColumnID == column.id },
-                set: { isTargeted in
-                    if isTargeted {
-                        targetedDropColumnID = column.id
-                        targetedDropTaskID = nil
-                    } else if targetedDropColumnID == column.id {
-                        targetedDropColumnID = nil
-                        targetedDropTaskID = nil
-                    }
+            isTargeted: { isTargeted in
+                if isTargeted {
+                    targetedDropColumnID = column.id
+                    targetedDropTaskID = nil
+                } else if targetedDropColumnID == column.id {
+                    targetedDropColumnID = nil
+                    targetedDropTaskID = nil
                 }
-            )
+            }
         )
+    }
+
+    private func taskCardButton(
+        _ task: TaskCard,
+        in column: BoardColumn,
+        checklistItems: [TaskChecklistItem],
+        moveNamespace: Namespace.ID
+    ) -> some View {
+        let dropTarget: (Bool) -> Void = { isTargeted in
+            if isTargeted {
+                targetedDropTaskID = task.id
+                targetedDropColumnID = column.id
+            } else if targetedDropTaskID == task.id {
+                targetedDropTaskID = nil
+            }
+        }
+
+        let cardButton = Button {
+            selectedTask = task
+        } label: {
+            TaskCardView(
+                task: task,
+                checklistItems: checklistItems,
+                moveNamespace: moveNamespace
+            )
+        }
+
+        let contextualCard = cardButton.contextMenu {
+            taskContextMenu(for: task, in: column)
+        }
+
+        let accessibleCard = contextualCard
+            .buttonStyle(.plain)
+            .accessibilityLabel(taskAccessibilitySummary(for: task, checklistItems: checklistItems))
+            .accessibilityHint("Используй стрелки вверх и вниз для изменения порядка, влево и вправо — для переноса между колонками.")
+            .accessibilityAction(named: Text("Переместить вверх")) { moveTask(task, using: .up) }
+            .accessibilityAction(named: Text("Переместить вниз")) { moveTask(task, using: .down) }
+            .accessibilityAction(named: Text("Переместить в предыдущую колонку")) { moveTask(task, using: .left) }
+            .accessibilityAction(named: Text("Переместить в следующую колонку")) { moveTask(task, using: .right) }
+
+        let focusedCard = accessibleCard
+            .focused($focusedTaskID, equals: task.id)
+            .focusable()
+            .overlay {
+                if focusedTaskID == task.id {
+                    RoundedRectangle(cornerRadius: JungoDesign.cardRadius, style: .continuous)
+                        .strokeBorder(Color.accentColor.opacity(0.9), lineWidth: JungoDesign.focusRingWidth)
+                        .padding(1)
+                        .allowsHitTesting(false)
+                }
+            }
+
+        let draggableCard = focusedCard
+            .onMoveCommand { direction in
+                moveTask(task, using: direction)
+            }
+            .draggable(task.id.uuidString)
+            .overlay(alignment: .top) {
+                if targetedDropTaskID == task.id {
+                    Capsule()
+                        .fill(Color.accentColor)
+                        .frame(height: JungoDesign.dragIndicatorHeight)
+                        .padding(.horizontal, 7)
+                        .offset(y: -2)
+                        .shadow(color: Color.accentColor.opacity(0.25), radius: 3, y: 1)
+                        .accessibilityHidden(true)
+                }
+            }
+
+        let dropEnabledCard = draggableCard.dropDestination(
+            for: String.self,
+            action: { identifiers, _ in
+                acceptTaskDrop(identifiers, in: column, before: task.id)
+            },
+            isTargeted: dropTarget
+        )
+
+        return dropEnabledCard
+    }
+
+    @ViewBuilder
+    private func taskContextMenu(for task: TaskCard, in column: BoardColumn) -> some View {
+        Button("Редактировать") { selectedTask = task }
+        Button("Дублировать задачу", systemImage: "plus.square.on.square") {
+            duplicateTask(task)
+        }
+        Menu("Переместить в") {
+            ForEach(visibleColumns.filter { $0.id != column.id }) { destination in
+                Button(destination.title) { moveTask(task.id, to: destination, before: nil) }
+            }
+        }
+        Divider()
+        Button("Удалить…", role: .destructive) { taskPendingDeletionID = task.id }
     }
 
     private func tasks(in column: BoardColumn, candidates: [TaskCard]? = nil) -> [TaskCard] {
