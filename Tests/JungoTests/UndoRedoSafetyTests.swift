@@ -1,9 +1,10 @@
-import XCTest
 import SwiftData
+import Testing
 import JungoCore
 @testable import Jungo
 
-final class UndoRedoSafetyTests: XCTestCase {
+@Suite("SwiftData Undo/Redo safety")
+struct UndoRedoSafetyTests {
     @MainActor
     private static func makeContext() throws -> (ModelContainer, ModelContext, UndoManager) {
         let schema = Schema([Board.self, BoardColumn.self, TaskCard.self, TaskChecklistItem.self])
@@ -16,8 +17,9 @@ final class UndoRedoSafetyTests: XCTestCase {
         return (container, context, undoManager)
     }
 
+    @Test
     @MainActor
-    func testUndoAndRedoRestoreCascadeDeletedBoardGraph() async throws {
+    func undoAndRedoRestoreCascadeDeletedBoardGraph() throws {
         let (_, context, undoManager) = try Self.makeContext()
         let board = Board(title: "Board")
         let column = BoardColumn(title: "Todo", sortOrder: 0, boardID: board.id)
@@ -39,10 +41,10 @@ final class UndoRedoSafetyTests: XCTestCase {
         try context.save()
         undoManager.endUndoGrouping()
 
-        XCTAssertEqual(try context.fetch(FetchDescriptor<Board>()).count, 0)
-        XCTAssertEqual(try context.fetch(FetchDescriptor<BoardColumn>()).count, 0)
-        XCTAssertEqual(try context.fetch(FetchDescriptor<TaskCard>()).count, 0)
-        XCTAssertEqual(try context.fetch(FetchDescriptor<TaskChecklistItem>()).count, 0)
+        #expect(try context.fetch(FetchDescriptor<Board>()).isEmpty)
+        #expect(try context.fetch(FetchDescriptor<BoardColumn>()).isEmpty)
+        #expect(try context.fetch(FetchDescriptor<TaskCard>()).isEmpty)
+        #expect(try context.fetch(FetchDescriptor<TaskChecklistItem>()).isEmpty)
 
         undoManager.undo()
 
@@ -51,24 +53,25 @@ final class UndoRedoSafetyTests: XCTestCase {
         let restoredTasks = try context.fetch(FetchDescriptor<TaskCard>())
         let restoredChecklist = try context.fetch(FetchDescriptor<TaskChecklistItem>())
 
-        XCTAssertEqual(restoredBoards.map(\.id), [board.id])
-        XCTAssertEqual(restoredColumns.map(\.id), [column.id])
-        XCTAssertEqual(restoredTasks.map(\.id), [task.id])
-        XCTAssertEqual(restoredChecklist.map(\.id), [checklist.id])
-        XCTAssertEqual(restoredColumns.first?.boardID, board.id)
-        XCTAssertEqual(restoredTasks.first?.columnID, column.id)
-        XCTAssertEqual(restoredChecklist.first?.taskID, task.id)
+        #expect(restoredBoards.map(\.id) == [board.id])
+        #expect(restoredColumns.map(\.id) == [column.id])
+        #expect(restoredTasks.map(\.id) == [task.id])
+        #expect(restoredChecklist.map(\.id) == [checklist.id])
+        #expect(restoredColumns.first?.boardID == board.id)
+        #expect(restoredTasks.first?.columnID == column.id)
+        #expect(restoredChecklist.first?.taskID == task.id)
 
         undoManager.redo()
 
-        XCTAssertEqual(try context.fetch(FetchDescriptor<Board>()).count, 0)
-        XCTAssertEqual(try context.fetch(FetchDescriptor<BoardColumn>()).count, 0)
-        XCTAssertEqual(try context.fetch(FetchDescriptor<TaskCard>()).count, 0)
-        XCTAssertEqual(try context.fetch(FetchDescriptor<TaskChecklistItem>()).count, 0)
+        #expect(try context.fetch(FetchDescriptor<Board>()).isEmpty)
+        #expect(try context.fetch(FetchDescriptor<BoardColumn>()).isEmpty)
+        #expect(try context.fetch(FetchDescriptor<TaskCard>()).isEmpty)
+        #expect(try context.fetch(FetchDescriptor<TaskChecklistItem>()).isEmpty)
     }
 
+    @Test
     @MainActor
-    func testUndoAndRedoRestoreTaskMoveAcrossColumns() async throws {
+    func undoAndRedoRestoreTaskMoveAcrossColumns() throws {
         let (_, context, undoManager) = try Self.makeContext()
         let board = Board(title: "Board")
         let source = BoardColumn(title: "Todo", sortOrder: 0, boardID: board.id)
@@ -89,16 +92,17 @@ final class UndoRedoSafetyTests: XCTestCase {
         undoManager.endUndoGrouping()
 
         undoManager.undo()
-        XCTAssertEqual(task.columnID, source.id)
-        XCTAssertEqual(task.sortOrder, 0)
+        #expect(task.columnID == source.id)
+        #expect(task.sortOrder == 0)
 
         undoManager.redo()
-        XCTAssertEqual(task.columnID, destination.id)
-        XCTAssertEqual(task.sortOrder, 0)
+        #expect(task.columnID == destination.id)
+        #expect(task.sortOrder == 0)
     }
 
+    @Test
     @MainActor
-    func testUndoAndRedoRestoreTrashStateWithoutDeletingTask() async throws {
+    func undoAndRedoRestoreTrashStateWithoutDeletingTask() throws {
         let (_, context, undoManager) = try Self.makeContext()
         let board = Board(title: "Board")
         let column = BoardColumn(title: "Todo", sortOrder: 0, boardID: board.id)
@@ -116,11 +120,11 @@ final class UndoRedoSafetyTests: XCTestCase {
         undoManager.endUndoGrouping()
 
         undoManager.undo()
-        XCTAssertFalse(task.isInTrash)
-        XCTAssertEqual(try context.fetch(FetchDescriptor<TaskCard>()).count, 1)
+        #expect(task.isInTrash == false)
+        #expect(try context.fetch(FetchDescriptor<TaskCard>()).count == 1)
 
         undoManager.redo()
-        XCTAssertTrue(task.isInTrash)
-        XCTAssertEqual(try context.fetch(FetchDescriptor<TaskCard>()).count, 1)
+        #expect(task.isInTrash == true)
+        #expect(try context.fetch(FetchDescriptor<TaskCard>()).count == 1)
     }
 }
