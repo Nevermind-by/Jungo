@@ -16,7 +16,7 @@ let package = Package(
         ),
         .testTarget(
             name: "JungoTests",
-            dependencies: ["JungoCore", "Jungo"],
+            dependencies: ["JungoCore"],
             path: "Tests/JungoTests"
         )
     ]
