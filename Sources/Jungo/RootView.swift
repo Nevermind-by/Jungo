@@ -797,7 +797,11 @@ struct RootView: View {
             )
         }
 
-        let accessibleCard = cardButton
+        let contextualCard = cardButton.contextMenu {
+            taskContextMenu(for: task, in: column)
+        }
+
+        let accessibleCard = contextualCard
             .buttonStyle(.plain)
             .accessibilityLabel(taskAccessibilitySummary(for: task, checklistItems: checklistItems))
             .accessibilityHint("Используй стрелки вверх и вниз для изменения порядка, влево и вправо — для переноса между колонками.")
@@ -843,9 +847,7 @@ struct RootView: View {
             isTargeted: dropTarget
         )
 
-        return dropEnabledCard.contextMenu {
-            taskContextMenu(for: task, in: column)
-        }
+        return dropEnabledCard
     }
 
     @ViewBuilder
