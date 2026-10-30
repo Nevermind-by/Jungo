@@ -591,7 +591,7 @@ struct RootView: View {
                 Text(column.title)
                     .font(.system(size: 13, weight: .semibold))
                     .lineLimit(1)
-                Text("\\(columnTasks.count)")
+                Text("\(columnTasks.count)")
                     .font(.system(size: 10, weight: .semibold).monospacedDigit())
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 7)
@@ -1215,7 +1215,7 @@ private struct TaskCardView: View {
     }
 
     private var completedChecklistCount: Int {
-        checklistItems.filter(\\.isCompleted).count
+        checklistItems.filter(\.isCompleted).count
     }
 
     private var priorityTint: Color {
@@ -1281,7 +1281,7 @@ private struct TaskCardView: View {
                     alignment: .leading,
                     spacing: 5
                 ) {
-                    ForEach(task.labels, id: \\.self) { label in
+                    ForEach(task.labels, id: \.self) { label in
                         TaskLabelPill(label: label)
                     }
                 }
@@ -1295,7 +1295,7 @@ private struct TaskCardView: View {
                         Text("Чек-лист")
                             .font(.system(size: 10, weight: .medium))
                         Spacer()
-                        Text("\\(completedChecklistCount) из \\(checklistItems.count)")
+                        Text("\(completedChecklistCount) из \(checklistItems.count)")
                             .font(.system(size: 10, weight: .semibold).monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
@@ -1305,7 +1305,7 @@ private struct TaskCardView: View {
                 }
                 .foregroundStyle(.secondary)
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel("Чек-лист: \\(completedChecklistCount) из \\(checklistItems.count) выполнено")
+                .accessibilityLabel("Чек-лист: \(completedChecklistCount) из \(checklistItems.count) выполнено")
             } else {
                 HStack {
                     Image(systemName: "clock")
