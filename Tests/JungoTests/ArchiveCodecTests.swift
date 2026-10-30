@@ -59,6 +59,26 @@ final class ArchiveCodecTests: XCTestCase {
         }
     }
 
+    func testDecodeRejectsDuplicateIdentifiersBeforeImport() throws {
+        let duplicateID = UUID()
+        let archive = JungoArchiveDocument(
+            formatVersion: 1,
+            exportedAt: timestamp,
+            boards: [
+                .init(id: duplicateID, title: "First", sortOrder: 0, createdAt: timestamp),
+                .init(id: duplicateID, title: "Second", sortOrder: 1, createdAt: timestamp)
+            ],
+            columns: [],
+            tasks: [],
+            checklistItems: []
+        )
+        let data = try rawEncode(archive)
+
+        XCTAssertThrowsError(try JungoArchiveCodec.decode(data)) {
+            XCTAssertEqual($0 as? ArchiveValidationError, .duplicateIdentifiers)
+        }
+    }
+
     func testDecodeRejectsEmptyTitlesBeforeImport() throws {
         let archive = makeArchive(boardTitle: "  ")
         let data = try rawEncode(archive)
