@@ -5,7 +5,7 @@ import JungoCore
 
 final class UndoRedoSafetyTests: XCTestCase {
     @MainActor
-    private func makeContext() throws -> (ModelContainer, ModelContext, UndoManager) {
+    private static func makeContext() throws -> (ModelContainer, ModelContext, UndoManager) {
         let schema = Schema([Board.self, BoardColumn.self, TaskCard.self, TaskChecklistItem.self])
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
         let container = try ModelContainer(for: schema, configurations: [configuration])
@@ -18,7 +18,7 @@ final class UndoRedoSafetyTests: XCTestCase {
     func testUndoAndRedoRestoreCascadeDeletedBoardGraph() async throws {
         try await MainActor.run {
             print("UndoRedoSafetyTests: creating in-memory context")
-            let (_, context, undoManager) = try makeContext()
+            let (_, context, undoManager) = try Self.makeContext()
             let board = Board(title: "Board")
             let column = BoardColumn(title: "Todo", sortOrder: 0, boardID: board.id)
             let task = TaskCard(title: "Task", columnID: column.id)
