@@ -4,7 +4,7 @@ import Testing
 import JungoCore
 @testable import Jungo
 
-@Suite("SwiftData Undo/Redo safety")
+@Suite("SwiftData Undo/Redo safety", .serialized)
 struct UndoRedoSafetyTests {
     @MainActor
     private static func makeContext() throws -> (ModelContainer, ModelContext, UndoManager) {
