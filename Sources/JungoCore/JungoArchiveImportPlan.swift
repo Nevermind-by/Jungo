@@ -29,7 +29,15 @@ public struct JungoArchiveImportPlan {
         from archive: JungoArchiveDocument,
         nextBoardSortOrder: Int
     ) throws -> JungoArchiveImportPlan {
-        try archive.validate()
+        try ArchiveValidation.validate(
+            formatVersion: archive.formatVersion,
+            boards: archive.boards.map { .init(id: $0.id, title: $0.title) },
+            columns: archive.columns.map { .init(id: $0.id, title: $0.title, boardID: $0.boardID) },
+            tasks: archive.tasks.map { .init(id: $0.id, title: $0.title, columnID: $0.columnID) },
+            checklistItems: (archive.checklistItems ?? []).map {
+                .init(id: $0.id, title: $0.title, taskID: $0.taskID)
+            }
+        )
 
         var boardIDMap: [UUID: UUID] = [:]
         var columnIDMap: [UUID: UUID] = [:]
