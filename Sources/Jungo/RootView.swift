@@ -260,7 +260,9 @@ struct RootView: View {
                 ForEach(activeBoards) { board in
                     Label {
                         Text(board.title)
-                            .font(.system(size: 12, weight: selectedBoardID == board.id ? .semibold : .medium))
+                            .font(.system(.subheadline).weight(selectedBoardID == board.id ? .semibold : .medium))
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
                     } icon: {
                         Image(systemName: "rectangle.split.3x1")
                             .foregroundStyle(Color.accentColor.opacity(0.85))
@@ -646,7 +648,7 @@ struct RootView: View {
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
                 Text("\(columnTasks.count)")
-                    .font(.system(size: 10, weight: .semibold).monospacedDigit())
+                    .font(.system(.caption, design: .monospaced).weight(.semibold))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 7)
                     .padding(.vertical, 3)
@@ -1183,12 +1185,14 @@ struct RootView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(task.title)
                                     .font(.system(.subheadline).weight(.semibold))
-                                    .lineLimit(2)
+                                    .lineLimit(3)
+                                    .fixedSize(horizontal: false, vertical: true)
                                 if !task.details.isEmpty {
                                     Text(task.details)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
-                                        .lineLimit(2)
+                                        .lineLimit(3)
+                                        .fixedSize(horizontal: false, vertical: true)
                                 }
                                 Text("Доска: \(board.title) · В корзине")
                                     .font(.system(.caption2).weight(.medium))
@@ -1608,7 +1612,7 @@ private struct TaskEditorSheet: View {
                                 .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 11))
                             } else {
                                 TextEditor(text: $draftDetails)
-                                    .font(.system(size: 12.5))
+                                    .font(.subheadline)
                                     .scrollContentBackground(.hidden)
                                     .padding(7)
                                     .frame(minHeight: 145, maxHeight: 190)
@@ -1683,7 +1687,7 @@ private struct TaskEditorSheet: View {
                                     .foregroundStyle(.secondary)
                                 Spacer()
                                 Text("\(completedCount) из \(draftChecklistItems.count)")
-                                    .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                                    .font(.system(.footnote, design: .monospaced).weight(.semibold))
                                     .foregroundStyle(.secondary)
                             }
                             if !draftChecklistItems.isEmpty {
@@ -1954,7 +1958,9 @@ private struct QuickAddTaskSheet: View {
                                             .font(.body)
                                             .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
                                         Text(column.title)
-                                            .font(.system(size: 12, weight: isSelected ? .semibold : .medium))
+                                            .font(.system(.subheadline).weight(isSelected ? .semibold : .medium))
+                                            .lineLimit(2)
+                                            .fixedSize(horizontal: false, vertical: true)
                                             .foregroundStyle(.primary)
                                         Spacer()
                                         if isSelected {
