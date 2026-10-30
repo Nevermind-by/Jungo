@@ -50,20 +50,26 @@ public struct JungoArchiveImportPlan {
                 )
             }
 
-        let importedColumns = archive.columns
+        let importedColumns = try archive.columns
             .sorted { $0.sortOrder < $1.sortOrder }
-            .map { record in
+            .map { record throws -> JungoArchiveDocument.ColumnRecord in
+                guard let boardID = boardIDMap[record.boardID] else {
+                    throw ArchiveValidationError.brokenReferences
+                }
                 let newID = UUID()
                 columnIDMap[record.id] = newID
                 return JungoArchiveDocument.ColumnRecord(
                     id: newID,
                     title: record.title,
                     sortOrder: record.sortOrder,
-                    boardID: boardIDMap[record.boardID]!
+                    boardID: boardID
                 )
             }
 
-        let importedTasks = archive.tasks.map { record in
+        let importedTasks = try archive.tasks.map { record throws -> JungoArchiveDocument.TaskRecord in
+            guard let columnID = columnIDMap[record.columnID] else {
+                throw ArchiveValidationError.brokenReferences
+            }
             let newID = UUID()
             taskIDMap[record.id] = newID
             return JungoArchiveDocument.TaskRecord(
@@ -73,20 +79,23 @@ public struct JungoArchiveImportPlan {
                 labelsText: record.labelsText ?? "",
                 priorityRawValue: record.priorityRawValue,
                 sortOrder: record.sortOrder,
-                columnID: columnIDMap[record.columnID]!,
+                columnID: columnID,
                 createdAt: record.createdAt,
                 dueDate: record.dueDate,
                 isInTrash: record.isInTrash ?? false
             )
         }
 
-        let importedChecklistItems = (archive.checklistItems ?? []).map { record in
-            JungoArchiveDocument.ChecklistRecord(
+        let importedChecklistItems = try (archive.checklistItems ?? []).map { record throws -> JungoArchiveDocument.ChecklistRecord in
+            guard let taskID = taskIDMap[record.taskID] else {
+                throw ArchiveValidationError.brokenReferences
+            }
+            return JungoArchiveDocument.ChecklistRecord(
                 id: UUID(),
                 title: record.title,
                 isCompleted: record.isCompleted,
                 sortOrder: record.sortOrder,
-                taskID: taskIDMap[record.taskID]!
+                taskID: taskID
             )
         }
 
