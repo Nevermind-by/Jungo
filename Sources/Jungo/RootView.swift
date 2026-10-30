@@ -787,7 +787,7 @@ struct RootView: View {
             }
         )
 
-        return Button {
+        let cardButton = Button {
             selectedTask = task
         } label: {
             TaskCardView(
@@ -796,46 +796,54 @@ struct RootView: View {
                 moveNamespace: moveNamespace
             )
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(taskAccessibilitySummary(for: task, checklistItems: checklistItems))
-        .accessibilityHint("Используй стрелки вверх и вниз для изменения порядка, влево и вправо — для переноса между колонками.")
-        .accessibilityAction(named: Text("Переместить вверх")) { moveTask(task, using: .up) }
-        .accessibilityAction(named: Text("Переместить вниз")) { moveTask(task, using: .down) }
-        .accessibilityAction(named: Text("Переместить в предыдущую колонку")) { moveTask(task, using: .left) }
-        .accessibilityAction(named: Text("Переместить в следующую колонку")) { moveTask(task, using: .right) }
-        .focused($focusedTaskID, equals: task.id)
-        .focusable()
-        .overlay {
-            if focusedTaskID == task.id {
-                RoundedRectangle(cornerRadius: JungoDesign.cardRadius, style: .continuous)
-                    .strokeBorder(Color.accentColor.opacity(0.9), lineWidth: JungoDesign.focusRingWidth)
-                    .padding(1)
-                    .allowsHitTesting(false)
+
+        let accessibleCard = cardButton
+            .buttonStyle(.plain)
+            .accessibilityLabel(taskAccessibilitySummary(for: task, checklistItems: checklistItems))
+            .accessibilityHint("Используй стрелки вверх и вниз для изменения порядка, влево и вправо — для переноса между колонками.")
+            .accessibilityAction(named: Text("Переместить вверх")) { moveTask(task, using: .up) }
+            .accessibilityAction(named: Text("Переместить вниз")) { moveTask(task, using: .down) }
+            .accessibilityAction(named: Text("Переместить в предыдущую колонку")) { moveTask(task, using: .left) }
+            .accessibilityAction(named: Text("Переместить в следующую колонку")) { moveTask(task, using: .right) }
+
+        let focusedCard = accessibleCard
+            .focused($focusedTaskID, equals: task.id)
+            .focusable()
+            .overlay {
+                if focusedTaskID == task.id {
+                    RoundedRectangle(cornerRadius: JungoDesign.cardRadius, style: .continuous)
+                        .strokeBorder(Color.accentColor.opacity(0.9), lineWidth: JungoDesign.focusRingWidth)
+                        .padding(1)
+                        .allowsHitTesting(false)
+                }
             }
-        }
-        .onMoveCommand { direction in
-            moveTask(task, using: direction)
-        }
-        .draggable(task.id.uuidString)
-        .overlay(alignment: .top) {
-            if targetedDropTaskID == task.id {
-                Capsule()
-                    .fill(Color.accentColor)
-                    .frame(height: JungoDesign.dragIndicatorHeight)
-                    .padding(.horizontal, 7)
-                    .offset(y: -2)
-                    .shadow(color: Color.accentColor.opacity(0.25), radius: 3, y: 1)
-                    .accessibilityHidden(true)
+
+        let draggableCard = focusedCard
+            .onMoveCommand { direction in
+                moveTask(task, using: direction)
             }
-        }
-        .dropDestination(
+            .draggable(task.id.uuidString)
+            .overlay(alignment: .top) {
+                if targetedDropTaskID == task.id {
+                    Capsule()
+                        .fill(Color.accentColor)
+                        .frame(height: JungoDesign.dragIndicatorHeight)
+                        .padding(.horizontal, 7)
+                        .offset(y: -2)
+                        .shadow(color: Color.accentColor.opacity(0.25), radius: 3, y: 1)
+                        .accessibilityHidden(true)
+                }
+            }
+
+        let dropEnabledCard = draggableCard.dropDestination(
             for: String.self,
             action: { identifiers, _ in
                 acceptTaskDrop(identifiers, in: column, before: task.id)
             },
             isTargeted: dropTarget
         )
-        .contextMenu {
+
+        return dropEnabledCard.contextMenu {
             taskContextMenu(for: task, in: column)
         }
     }
