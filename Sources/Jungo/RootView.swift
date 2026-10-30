@@ -584,11 +584,19 @@ struct RootView: View {
         let columnTasks = tasks(in: column, candidates: taskCandidates)
         let hasTasksBeforeFilters = taskCandidates.contains { !$0.isInTrash }
         return VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Circle().fill(columnColor(column.sortOrder)).frame(width: 8, height: 8)
-                Text(column.title).font(.headline).lineLimit(1)
-                Text("\(columnTasks.count)").font(.caption.weight(.medium)).foregroundStyle(.secondary)
-                    .padding(.horizontal, 6).padding(.vertical, 2).background(.quaternary, in: Capsule())
+            HStack(spacing: 9) {
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    .fill(columnColor(column.sortOrder))
+                    .frame(width: 4, height: 19)
+                Text(column.title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .lineLimit(1)
+                Text("\(columnTasks.count)")
+                    .font(.system(size: 10, weight: .semibold).monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Color.secondary.opacity(0.10), in: Capsule())
                 Spacer()
                 Menu {
                     Button("Переименовать") {
@@ -1206,6 +1214,18 @@ private struct TaskCardView: View {
         task.dueDate.map { $0 < Calendar.current.startOfDay(for: .now) } ?? false
     }
 
+    private var completedChecklistCount: Int {
+        checklistItems.filter(\.isCompleted).count
+    }
+
+    private var priorityTint: Color {
+        switch task.priority {
+        case .high: .orange
+        case .low: .secondary
+        case .normal: .blue
+        }
+    }
+
     private var accentColor: Color? {
         if isOverdue { return .red }
         if task.priority == .high { return .orange }
@@ -1213,20 +1233,51 @@ private struct TaskCardView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 11) {
+            HStack(spacing: 6) {
+                Label(task.priority.title, systemImage: task.priority.symbol)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(priorityTint)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(priorityTint.opacity(0.11), in: Capsule())
+
+                Spacer(minLength: 4)
+
+                if let dueDate = task.dueDate {
+                    Label {
+                        Text(dueDate, format: .dateTime.month(.abbreviated).day())
+                    } icon: {
+                        Image(systemName: "calendar")
+                    }
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(isOverdue ? .red : .secondary)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 4)
+                    .background((isOverdue ? Color.red : Color.secondary).opacity(0.09), in: Capsule())
+                    .help(isOverdue ? "Срок выполнения просрочен" : "Срок выполнения")
+                }
+            }
+
             Text(task.title)
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(.primary)
                 .lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
+
             if !task.details.isEmpty {
-                Text(task.details).font(.caption).foregroundStyle(.secondary).lineLimit(3)
+                Text(task.details)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(.secondary)
+                    .lineSpacing(2)
+                    .lineLimit(3)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+
             if !task.labels.isEmpty {
                 LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 54), alignment: .leading)],
+                    columns: [GridItem(.adaptive(minimum: 58), alignment: .leading)],
                     alignment: .leading,
                     spacing: 5
                 ) {
@@ -1235,41 +1286,49 @@ private struct TaskCardView: View {
                     }
                 }
             }
+
             if !checklistItems.isEmpty {
-                Label("\(checklistItems.filter(\.isCompleted).count)/\(checklistItems.count)", systemImage: "checklist")
-                    .font(.caption2).foregroundStyle(.secondary)
-            }
-            HStack {
-                Label(task.priority.title, systemImage: task.priority.symbol)
-                    .font(.caption2)
-                    .foregroundStyle(task.priority == .high ? .orange : .secondary)
-                Spacer()
-                if let dueDate = task.dueDate {
-                    Label {
-                        Text(dueDate, format: .dateTime.month(.abbreviated).day())
-                    } icon: {
-                        Image(systemName: "calendar")
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checklist")
+                            .font(.system(size: 10, weight: .medium))
+                        Text("Чек-лист")
+                            .font(.system(size: 10, weight: .medium))
+                        Spacer()
+                        Text("\(completedChecklistCount) из \(checklistItems.count)")
+                            .font(.system(size: 10, weight: .semibold).monospacedDigit())
+                            .foregroundStyle(.secondary)
                     }
-                    .font(.caption2)
-                    .foregroundStyle(dueDate < Calendar.current.startOfDay(for: .now) ? .red : .secondary)
-                } else {
-                    Text(task.createdAt, format: .dateTime.month(.abbreviated).day())
-                        .font(.caption2).foregroundStyle(.tertiary)
+                    ProgressView(value: Double(completedChecklistCount), total: Double(checklistItems.count))
+                        .tint(completedChecklistCount == checklistItems.count ? .green : .accentColor)
+                        .controlSize(.mini)
                 }
+                .foregroundStyle(.secondary)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Чек-лист: \(completedChecklistCount) из \(checklistItems.count) выполнено")
+            } else {
+                HStack {
+                    Image(systemName: "clock")
+                        .font(.system(size: 9))
+                    Text(task.createdAt, format: .dateTime.month(.abbreviated).day())
+                        .font(.system(size: 10, weight: .medium))
+                }
+                .foregroundStyle(.tertiary)
             }
         }
-        .padding(12)
-        .jungoTaskSurface(radius: 14)
+        .padding(13)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .jungoTaskSurface(radius: 15)
         .overlay(alignment: .leading) {
             if let accentColor {
                 Capsule()
                     .fill(accentColor)
                     .frame(width: 3)
-                    .padding(.vertical, 10)
+                    .padding(.vertical, 11)
                     .padding(.leading, 1)
             }
         }
-        .contentShape(RoundedRectangle(cornerRadius: 14))
+        .contentShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
         .matchedGeometryEffect(id: task.id, in: moveNamespace, properties: .frame)
     }
 }
