@@ -16,8 +16,8 @@ final class UndoRedoSafetyTests: XCTestCase {
         return (container, context, undoManager)
     }
 
-    func testUndoAndRedoRestoreCascadeDeletedBoardGraph() throws {
-        try MainActor.assumeIsolated {
+    func testUndoAndRedoRestoreCascadeDeletedBoardGraph() async throws {
+        try await MainActor.run {
             let (_, context, undoManager) = try Self.makeContext()
             let board = Board(title: "Board")
             let column = BoardColumn(title: "Todo", sortOrder: 0, boardID: board.id)
@@ -70,8 +70,8 @@ final class UndoRedoSafetyTests: XCTestCase {
         }
     }
 
-    func testUndoAndRedoRestoreTaskMoveAcrossColumns() throws {
-        try MainActor.assumeIsolated {
+    func testUndoAndRedoRestoreTaskMoveAcrossColumns() async throws {
+        try await MainActor.run {
             let (_, context, undoManager) = try Self.makeContext()
             let board = Board(title: "Board")
             let source = BoardColumn(title: "Todo", sortOrder: 0, boardID: board.id)
@@ -101,8 +101,8 @@ final class UndoRedoSafetyTests: XCTestCase {
         }
     }
 
-    func testUndoAndRedoRestoreTrashStateWithoutDeletingTask() throws {
-        try MainActor.assumeIsolated {
+    func testUndoAndRedoRestoreTrashStateWithoutDeletingTask() async throws {
+        try await MainActor.run {
             let (_, context, undoManager) = try Self.makeContext()
             let board = Board(title: "Board")
             let column = BoardColumn(title: "Todo", sortOrder: 0, boardID: board.id)
