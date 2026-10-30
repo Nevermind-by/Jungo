@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 
 struct RootView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.openWindow) private var openWindow
     @Query(sort: \Board.sortOrder) private var boards: [Board]
     @Query(sort: \BoardColumn.sortOrder) private var allColumns: [BoardColumn]
@@ -34,6 +35,7 @@ struct RootView: View {
     @State private var showLabelColorSettings = false
     @State private var showTrash = false
     @FocusState private var isSearchFocused: Bool
+    @FocusState private var focusedTaskID: UUID?
     @State private var errorMessage: String?
     @State private var statusMessage: String?
     @State private var targetedDropColumnID: UUID?
@@ -184,6 +186,13 @@ struct RootView: View {
         .onChange(of: selectedBoardID) { _, newValue in
             if let newValue { persistedSelectedBoardID = newValue.uuidString }
             selectedLabel = ""
+            targetedDropColumnID = nil
+            targetedDropTaskID = nil
+        }
+        .onChange(of: showTrash) { _, _ in
+            targetedDropColumnID = nil
+            targetedDropTaskID = nil
+            focusedTaskID = nil
         }
         .onReceive(NotificationCenter.default.publisher(for: .jungoCreateTask)) { _ in
             guard !showTrash, let column = visibleColumns.first else { return }
@@ -634,7 +643,8 @@ struct RootView: View {
                     .frame(width: 4, height: 19)
                 Text(column.title)
                     .font(.system(size: 13, weight: .semibold))
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text("\(columnTasks.count)")
                     .font(.system(size: 10, weight: .semibold).monospacedDigit())
                     .foregroundStyle(.secondary)
@@ -694,7 +704,21 @@ struct RootView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(taskAccessibilitySummary(for: task, checklistItems: checklistItemsByTask[task.id] ?? []))
-                .accessibilityHint("Используй стрелки, чтобы менять порядок задачи или перемещать её между колонками.")
+                .accessibilityHint("Используй стрелки вверх и вниз для изменения порядка, влево и вправо — для переноса между колонками.")
+                .accessibilityAction(named: Text("Переместить вверх")) { moveTask(task, using: .up) }
+                .accessibilityAction(named: Text("Переместить вниз")) { moveTask(task, using: .down) }
+                .accessibilityAction(named: Text("Переместить в предыдущую колонку")) { moveTask(task, using: .left) }
+                .accessibilityAction(named: Text("Переместить в следующую колонку")) { moveTask(task, using: .right) }
+                .focused($focusedTaskID, equals: task.id)
+                .focusable()
+                .overlay {
+                    if focusedTaskID == task.id {
+                        RoundedRectangle(cornerRadius: JungoDesign.cardRadius, style: .continuous)
+                            .strokeBorder(Color.accentColor.opacity(0.9), lineWidth: JungoDesign.focusRingWidth)
+                            .padding(1)
+                            .allowsHitTesting(false)
+                    }
+                }
                 .onMoveCommand { direction in
                     moveTask(task, using: direction)
                 }
@@ -783,8 +807,8 @@ struct RootView: View {
                 .padding(1)
                 .allowsHitTesting(false)
         }
-        .animation(.snappy(duration: 0.18), value: targetedDropColumnID)
-        .animation(.snappy(duration: 0.28), value: columnTasks.map(\.id))
+        .animation(reduceMotion ? nil : .snappy(duration: 0.18), value: targetedDropColumnID)
+        .animation(reduceMotion ? nil : .snappy(duration: 0.28), value: columnTasks.map(\.id))
         .dropDestination(
             for: String.self,
             action: { identifiers, _ in
@@ -993,7 +1017,7 @@ struct RootView: View {
         // Animate the model update as one coordinated move. A short spring
         // lets the source and destination columns settle together without the
         // long, bouncy motion that makes a Kanban board feel sluggish.
-        withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+        withAnimation(reduceMotion ? nil : .spring(response: 0.28, dampingFraction: 0.88)) {
             if !isReorderingWithinColumn {
                 task.columnID = destination.id
             }
@@ -1399,7 +1423,8 @@ private struct TaskCardView: View {
                     .font(.system(size: 11.5))
                     .foregroundStyle(.secondary)
                     .lineSpacing(2)
-                    .lineLimit(3)
+                    .lineLimit(4)
+                    .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
@@ -1446,9 +1471,9 @@ private struct TaskCardView: View {
         }
         .padding(13)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .jungoTaskSurface(radius: 15)
+        .jungoTaskSurface(radius: JungoDesign.cardRadius)
         .overlay {
-            RoundedRectangle(cornerRadius: 15, style: .continuous)
+            RoundedRectangle(cornerRadius: JungoDesign.cardRadius, style: .continuous)
                 .strokeBorder(Color.accentColor.opacity(isHovering ? 0.38 : 0), lineWidth: 1)
                 .allowsHitTesting(false)
         }
@@ -1471,7 +1496,7 @@ private struct TaskCardView: View {
                     .padding(.leading, 1)
             }
         }
-        .contentShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: JungoDesign.cardRadius, style: .continuous))
         .matchedGeometryEffect(id: task.id, in: moveNamespace, properties: .frame)
     }
 }
