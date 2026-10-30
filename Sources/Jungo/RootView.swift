@@ -1620,7 +1620,7 @@ private struct TaskEditorSheet: View {
                                     .overlay(alignment: .topLeading) {
                                         if draftDetails.isEmpty {
                                             Text("Опиши задачу, добавь детали или Markdown…")
-                                                .font(.system(size: 12.5))
+                                                .font(.subheadline)
                                                 .foregroundStyle(.tertiary)
                                                 .padding(.horizontal, 12)
                                                 .padding(.vertical, 15)
