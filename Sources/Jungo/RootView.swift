@@ -743,10 +743,7 @@ struct RootView: View {
                 .dropDestination(
                     for: String.self,
                     action: { identifiers, _ in
-                        guard let rawID = identifiers.first,
-                              let draggedID = UUID(uuidString: rawID) else { return false }
-                        moveTask(draggedID, to: column, before: task.id)
-                        return true
+                        acceptTaskDrop(identifiers, in: column, before: task.id)
                     },
                     isTargeted: Binding(
                         get: { targetedDropTaskID == task.id },
@@ -818,10 +815,7 @@ struct RootView: View {
         .dropDestination(
             for: String.self,
             action: { identifiers, _ in
-                guard let rawID = identifiers.first,
-                      let draggedID = UUID(uuidString: rawID) else { return false }
-                moveTask(draggedID, to: column, before: nil)
-                return true
+                acceptTaskDrop(identifiers, in: column, before: nil)
             },
             isTargeted: Binding(
                 get: { targetedDropColumnID == column.id },
@@ -980,6 +974,15 @@ struct RootView: View {
         modelContext.insert(task)
         guard saveChanges() else { return false }
         statusMessage = "Задача «\(cleanTitle)» создана."
+        return true
+    }
+
+    private func acceptTaskDrop(_ identifiers: [String], in destination: BoardColumn, before targetID: UUID?) -> Bool {
+        guard let rawID = identifiers.first,
+              let draggedID = UUID(uuidString: rawID) else { return false }
+        moveTask(draggedID, to: destination, before: targetID)
+        targetedDropTaskID = nil
+        targetedDropColumnID = nil
         return true
     }
 
