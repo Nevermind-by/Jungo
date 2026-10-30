@@ -3,7 +3,7 @@ import SwiftUI
 /// Compact, adaptive quick capture sheet.
 /// The header and actions remain fixed while the form scrolls when vertical space is limited.
 struct QuickAddTaskSheet: View {
-    @Environment(\\.dismiss) private var dismiss
+    @Environment(\.dismiss) private var dismiss
 
     let columns: [BoardColumn]
     let onCreate: (String, String, UUID) -> Bool
@@ -57,7 +57,7 @@ struct QuickAddTaskSheet: View {
                 selectedColumnID = columns.first?.id
             }
         }
-        .onChange(of: columns.map(\\.id)) { _, ids in
+        .onChange(of: columns.map(\.id)) { _, ids in
             if let selectedColumnID, ids.contains(selectedColumnID) { return }
             selectedColumnID = ids.first
         }
