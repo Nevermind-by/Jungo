@@ -9,7 +9,7 @@ public enum ArchiveValidationError: Error, Equatable, LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .unsupportedVersion(let version):
-            return "Версия архива \\(version) не поддерживается."
+            return "Версия архива \(version) не поддерживается."
         case .duplicateIdentifiers:
             return "Архив содержит повторяющиеся идентификаторы."
         case .brokenReferences:
