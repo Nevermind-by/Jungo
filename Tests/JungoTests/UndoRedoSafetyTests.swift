@@ -1,4 +1,5 @@
 import SwiftData
+import AppKit
 import Testing
 import JungoCore
 @testable import Jungo
@@ -53,10 +54,10 @@ struct UndoRedoSafetyTests {
         let restoredTasks = try context.fetch(FetchDescriptor<TaskCard>())
         let restoredChecklist = try context.fetch(FetchDescriptor<TaskChecklistItem>())
 
-        #expect(restoredBoards.map(\.id) == [board.id])
-        #expect(restoredColumns.map(\.id) == [column.id])
-        #expect(restoredTasks.map(\.id) == [task.id])
-        #expect(restoredChecklist.map(\.id) == [checklist.id])
+        #expect(restoredBoards.map { $0.id } == [board.id])
+        #expect(restoredColumns.map { $0.id } == [column.id])
+        #expect(restoredTasks.map { $0.id } == [task.id])
+        #expect(restoredChecklist.map { $0.id } == [checklist.id])
         #expect(restoredColumns.first?.boardID == board.id)
         #expect(restoredTasks.first?.columnID == column.id)
         #expect(restoredChecklist.first?.taskID == task.id)
