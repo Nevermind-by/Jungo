@@ -18,6 +18,7 @@ enum VaultStore {
         case invalidReferences
         case verificationFailed
         case existingVaultNotFound
+        case invalidStore
 
         var errorDescription: String? {
             switch self {
@@ -31,6 +32,8 @@ enum VaultStore {
                 "Проверка новой базы не прошла. Активное хранилище осталось прежним."
             case .existingVaultNotFound:
                 "В выбранной папке не найден Jungo.store. Восстановление доступа не изменило настройки и данные."
+            case .invalidStore:
+                "Файл Jungo.store пустой или не похож на существующее хранилище Jungo. Настройки доступа не изменены."
             }
         }
     }
@@ -155,6 +158,10 @@ enum VaultStore {
         let storeURL = folder.appendingPathComponent("Jungo.store")
         guard FileManager.default.fileExists(atPath: storeURL.path) else {
             throw VaultError.existingVaultNotFound
+        }
+        let attributes = try FileManager.default.attributesOfItem(atPath: storeURL.path)
+        guard let fileSize = attributes[.size] as? NSNumber, fileSize.intValue > 0 else {
+            throw VaultError.invalidStore
         }
         // Do not persist a bookmark to a file that merely exists. Open the
         // database and validate its complete object graph first; otherwise a
