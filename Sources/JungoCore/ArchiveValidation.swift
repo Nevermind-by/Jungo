@@ -1,10 +1,23 @@
 import Foundation
 
-public enum ArchiveValidationError: Error, Equatable {
+public enum ArchiveValidationError: Error, Equatable, LocalizedError {
     case unsupportedVersion(Int)
     case duplicateIdentifiers
     case brokenReferences
     case emptyTitles
+
+    public var errorDescription: String? {
+        switch self {
+        case .unsupportedVersion(let version):
+            return "Версия архива \(version) не поддерживается."
+        case .duplicateIdentifiers:
+            return "Архив содержит повторяющиеся идентификаторы."
+        case .brokenReferences:
+            return "В архиве есть записи без существующей родительской записи."
+        case .emptyTitles:
+            return "В архиве есть записи без названия."
+        }
+    }
 }
 
 /// Pure validation for a JSON archive, independent of SwiftData so the rules can be unit-tested.
