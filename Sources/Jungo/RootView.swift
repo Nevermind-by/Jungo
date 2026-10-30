@@ -1361,102 +1361,220 @@ private struct TaskEditorSheet: View {
         allChecklistItems.filter { $0.taskID == task.id }.sorted { $0.sortOrder < $1.sortOrder }
     }
 
+    private var completedCount: Int {
+        draftChecklistItems.filter(\.isCompleted).count
+    }
+
+    private var isTitleValid: Bool {
+        !draftTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Редактирование задачи")
-                .font(.title2.bold())
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
-            TextField("Название задачи", text: $draftTitle)
-                .textFieldStyle(.roundedBorder)
-                .font(.title3)
-            TextField("Метки через запятую", text: $draftLabelsText)
-                .textFieldStyle(.roundedBorder)
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .center, spacing: 12) {
-                    Text("Описание")
-                        .font(.subheadline.weight(.semibold))
-                    Spacer(minLength: 8)
-                    Picker("Режим описания", selection: $showDescriptionPreview) {
-                        Text("Правка").tag(false)
-                        Text("Предпросмотр").tag(true)
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.segmented)
-                    .frame(width: 224)
-                }
-                if showDescriptionPreview {
-                    ScrollView {
-                        Group {
-                            if let rendered = try? AttributedString(markdown: draftDetails) {
-                                Text(rendered)
-                            } else {
-                                Text(draftDetails)
+        VStack(spacing: 0) {
+            editorHeader
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    JungoSectionSurface("Основное", subtitle: "Название и контекст задачи") {
+                        VStack(alignment: .leading, spacing: 10) {
+                            TextField("Название задачи", text: $draftTitle)
+                                .textFieldStyle(.plain)
+                                .font(.system(size: 19, weight: .semibold))
+                                .padding(12)
+                                .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 11))
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("МЕТКИ")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .tracking(0.8)
+                                    .foregroundStyle(.tertiary)
+                                TextField("Например: дизайн, срочно, личное", text: $draftLabelsText)
+                                    .textFieldStyle(.plain)
+                                    .padding(.vertical, 5)
                             }
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(8)
                     }
-                    .frame(minHeight: 150)
-                    .padding(8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 10))
-                } else {
-                    TextEditor(text: $draftDetails)
-                        .frame(minHeight: 150)
-                        .padding(6)
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(.quaternary))
-                }
-            }
-            Picker("Приоритет", selection: $draftPriority) {
-                ForEach(TaskPriority.allCases) { priority in Text(priority.title).tag(priority) }
-            }
-            .pickerStyle(.segmented)
-            Toggle("Установить срок", isOn: $draftHasDueDate)
-            if draftHasDueDate {
-                DatePicker("Срок", selection: $draftDueDate, displayedComponents: .date)
-            }
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Чек-лист").font(.subheadline.weight(.semibold))
-                    Spacer()
-                    Text("\(draftChecklistItems.filter(\.isCompleted).count)/\(draftChecklistItems.count)")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-                ForEach($draftChecklistItems) { $item in
-                    HStack(spacing: 8) {
-                        Toggle("Выполнено", isOn: $item.isCompleted)
-                            .labelsHidden()
-                            .accessibilityLabel("Выполнено: \(item.title)")
-                        TextField("Пункт чек-листа", text: $item.title)
-                            .textFieldStyle(.roundedBorder)
-                        Button(role: .destructive) {
-                            draftChecklistItems.removeAll { $0.id == item.id }
-                        } label: {
-                            Image(systemName: "xmark.circle")
+
+                    JungoSectionSurface("Описание", subtitle: "Поддерживается Markdown-разметка") {
+                        VStack(spacing: 10) {
+                            HStack {
+                                Label("Содержание", systemImage: "text.alignleft")
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Picker("Режим описания", selection: $showDescriptionPreview) {
+                                    Text("Правка").tag(false)
+                                    Text("Просмотр").tag(true)
+                                }
+                                .labelsHidden()
+                                .pickerStyle(.segmented)
+                                .frame(width: 170)
+                                .controlSize(.small)
+                            }
+                            if showDescriptionPreview {
+                                ScrollView {
+                                    Group {
+                                        if draftDetails.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                            ContentUnavailableView("Пока пусто", systemImage: "text.alignleft", description: Text("Добавь описание в режиме правки."))
+                                        } else if let rendered = try? AttributedString(markdown: draftDetails) {
+                                            Text(rendered)
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                        } else {
+                                            Text(draftDetails).frame(maxWidth: .infinity, alignment: .leading)
+                                        }
+                                    }
+                                    .padding(12)
+                                }
+                                .frame(minHeight: 145, maxHeight: 190)
+                                .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 11))
+                            } else {
+                                TextEditor(text: $draftDetails)
+                                    .font(.system(size: 12.5))
+                                    .scrollContentBackground(.hidden)
+                                    .padding(7)
+                                    .frame(minHeight: 145, maxHeight: 190)
+                                    .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 11))
+                                    .overlay(alignment: .topLeading) {
+                                        if draftDetails.isEmpty {
+                                            Text("Опиши задачу, добавь детали или Markdown…")
+                                                .font(.system(size: 12.5))
+                                                .foregroundStyle(.tertiary)
+                                                .padding(.horizontal, 12)
+                                                .padding(.vertical, 15)
+                                                .allowsHitTesting(false)
+                                        }
+                                    }
+                            }
                         }
-                        .buttonStyle(.plain)
-                        .help("Удалить пункт")
-                        .accessibilityLabel("Удалить пункт: \(item.title)")
+                    }
+
+                    JungoSectionSurface("Планирование", subtitle: "Приоритет и срок выполнения") {
+                        VStack(alignment: .leading, spacing: 12) {
+                            VStack(alignment: .leading, spacing: 7) {
+                                Text("ПРИОРИТЕТ")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .tracking(0.8)
+                                    .foregroundStyle(.tertiary)
+                                HStack(spacing: 7) {
+                                    ForEach(TaskPriority.allCases) { priority in
+                                        let selected = draftPriority == priority
+                                        Button {
+                                            draftPriority = priority
+                                        } label: {
+                                            HStack(spacing: 6) {
+                                                Image(systemName: priority.symbol)
+                                                Text(priority.title)
+                                            }
+                                            .font(.system(size: 11, weight: .semibold))
+                                            .frame(maxWidth: .infinity)
+                                            .padding(.vertical, 9)
+                                            .foregroundStyle(selected ? Color.accentColor : Color.secondary)
+                                            .background(selected ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 9))
+                                            .overlay {
+                                                RoundedRectangle(cornerRadius: 9)
+                                                    .strokeBorder(selected ? Color.accentColor.opacity(0.35) : Color.clear, lineWidth: 1)
+                                            }
+                                        }
+                                        .buttonStyle(.plain)
+                                        .accessibilityAddTraits(selected ? .isSelected : [])
+                                    }
+                                }
+                            }
+                            Divider().opacity(0.6)
+                            Toggle(isOn: $draftHasDueDate) {
+                                Label("Срок выполнения", systemImage: "calendar")
+                                    .font(.system(size: 12, weight: .medium))
+                            }
+                            .toggleStyle(.switch)
+                            if draftHasDueDate {
+                                DatePicker("Выполнить до", selection: $draftDueDate, displayedComponents: .date)
+                                    .datePickerStyle(.compact)
+                                    .padding(.leading, 25)
+                                    .transition(.opacity.combined(with: .move(edge: .top)))
+                            }
+                        }
+                        .animation(.snappy(duration: 0.2), value: draftHasDueDate)
+                    }
+
+                    JungoSectionSurface("Чек-лист", subtitle: "Разбей работу на небольшие шаги") {
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(alignment: .firstTextBaseline) {
+                                Text("Прогресс")
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Text("\(completedCount) из \(draftChecklistItems.count)")
+                                    .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                                    .foregroundStyle(.secondary)
+                            }
+                            if !draftChecklistItems.isEmpty {
+                                ProgressView(value: Double(completedCount), total: Double(draftChecklistItems.count))
+                                    .tint(completedCount == draftChecklistItems.count ? .green : .accentColor)
+                                    .controlSize(.small)
+                            }
+                            ForEach($draftChecklistItems) { $item in
+                                HStack(spacing: 9) {
+                                    Toggle("Выполнено", isOn: $item.isCompleted)
+                                        .labelsHidden()
+                                        .toggleStyle(.checkbox)
+                                        .accessibilityLabel("Выполнено: \(item.title)")
+                                    TextField("Пункт чек-листа", text: $item.title)
+                                        .textFieldStyle(.plain)
+                                        .font(.system(size: 12))
+                                    Spacer(minLength: 0)
+                                    Button(role: .destructive) {
+                                        draftChecklistItems.removeAll { $0.id == item.id }
+                                    } label: {
+                                        Image(systemName: "minus.circle")
+                                            .font(.system(size: 13))
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .help("Удалить пункт")
+                                    .accessibilityLabel("Удалить пункт: \(item.title)")
+                                }
+                                .padding(.vertical, 5)
+                                if item.id != draftChecklistItems.last?.id {
+                                    Divider().opacity(0.45)
+                                }
+                            }
+                            HStack(spacing: 8) {
+                                Image(systemName: "plus.circle.fill")
+                                    .foregroundStyle(Color.accentColor)
+                                TextField("Добавить пункт…", text: $newChecklistTitle)
+                                    .textFieldStyle(.plain)
+                                    .font(.system(size: 12))
+                                    .onSubmit(addChecklistItem)
+                                Button("Добавить", action: addChecklistItem)
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+                                    .disabled(newChecklistTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            }
+                            .padding(.top, 3)
+                        }
                     }
                 }
-                HStack {
-                    TextField("Новый пункт", text: $newChecklistTitle)
-                        .textFieldStyle(.roundedBorder)
-                    Button("Добавить", systemImage: "plus", action: addChecklistItem)
-                        .disabled(newChecklistTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
+                .padding(20)
             }
+            .scrollIndicators(.automatic)
+
+            Divider().opacity(0.65)
             HStack {
+                Text("Изменения сохраняются только по кнопке «Сохранить».")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
                 Spacer()
                 Button("Отмена", role: .cancel) { dismiss() }
+                    .keyboardShortcut(.cancelAction)
                 Button("Сохранить", action: saveDraft)
-                    .keyboardShortcut(.defaultAction).buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!isTitleValid)
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 13)
+            .background(.bar)
         }
-        .padding(24)
-        .frame(width: 560)
-        .frame(minHeight: 560)
+        .frame(minWidth: 520, idealWidth: 600, maxWidth: 720, minHeight: 620, idealHeight: 760)
         .background(JungoCanvasBackground())
         .onAppear {
             draftTitle = task.title
@@ -1471,6 +1589,35 @@ private struct TaskEditorSheet: View {
         }
     }
 
+    private var editorHeader: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.accentColor.opacity(0.12))
+                Image(systemName: "square.and.pencil")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(Color.accentColor)
+            }
+            .frame(width: 40, height: 40)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Редактор задачи")
+                    .font(.system(size: 16, weight: .bold))
+                Text("Настрой детали и план выполнения")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Text("JUNGO")
+                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .tracking(1.5)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+        .background(.bar)
+        .overlay(alignment: .bottom) { Divider().opacity(0.6) }
+    }
+
     private func addChecklistItem() {
         let title = newChecklistTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return }
@@ -1479,10 +1626,13 @@ private struct TaskEditorSheet: View {
     }
 
     private func saveDraft() {
-        task.title = draftTitle
+        let normalizedTitle = draftTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedTitle.isEmpty else { return }
+
+        task.title = normalizedTitle
         task.labelsText = draftLabelsText
         task.details = draftDetails
-        // Keep unknown future priority values intact unless the user changes the selection.
+        // Неизвестные значения приоритета сохраняются, пока пользователь явно не выберет другой.
         if draftPriority != task.priority {
             task.priority = draftPriority
         }
@@ -1554,37 +1704,129 @@ private struct QuickAddTaskSheet: View {
         _selectedColumnID = State(initialValue: initialColumnID)
     }
 
+    private var normalizedTitle: String {
+        title.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Быстро добавить задачу").font(.title2.bold())
-            TextField("Название задачи", text: $title)
-                .textFieldStyle(.roundedBorder)
-                .font(.title3)
-            TextField("Описание (необязательно)", text: $details)
-                .textFieldStyle(.roundedBorder)
-            Picker("Колонка", selection: $selectedColumnID) {
-                ForEach(columns) { column in
-                    Text(column.title).tag(Optional(column.id))
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.accentColor.opacity(0.12))
+                    Image(systemName: "bolt.fill")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(Color.accentColor)
+                }
+                .frame(width: 40, height: 40)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Быстрое добавление")
+                        .font(.system(size: 16, weight: .bold))
+                    Text("Запиши задачу и возвращайся к работе")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text("JUNGO")
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .tracking(1.5)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(20)
+            .background(.bar)
+            .overlay(alignment: .bottom) { Divider().opacity(0.6) }
+
+            VStack(alignment: .leading, spacing: 16) {
+                JungoSectionSurface("Новая задача", subtitle: "Начни с короткого и понятного названия") {
+                    TextField("Что нужно сделать?", text: $title)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 19, weight: .semibold))
+                        .padding(12)
+                        .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 11))
+                        .onSubmit(createTask)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("ОПИСАНИЕ")
+                            .font(.system(size: 9, weight: .bold))
+                            .tracking(0.8)
+                            .foregroundStyle(.tertiary)
+                        TextField("Добавь контекст (необязательно)", text: $details, axis: .vertical)
+                            .textFieldStyle(.plain)
+                            .lineLimit(2...4)
+                            .font(.system(size: 12))
+                            .padding(10)
+                            .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 9))
+                    }
+                }
+
+                JungoSectionSurface("Куда добавить", subtitle: "Задача появится в выбранной колонке") {
+                    if columns.isEmpty {
+                        ContentUnavailableView("Нет доступных колонок", systemImage: "rectangle.split.3x1")
+                    } else {
+                        VStack(spacing: 6) {
+                            ForEach(columns) { column in
+                                let isSelected = selectedColumnID == column.id
+                                Button {
+                                    selectedColumnID = column.id
+                                } label: {
+                                    HStack(spacing: 10) {
+                                        Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
+                                            .font(.system(size: 15))
+                                            .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+                                        Text(column.title)
+                                            .font(.system(size: 12, weight: isSelected ? .semibold : .medium))
+                                            .foregroundStyle(.primary)
+                                        Spacer()
+                                        if isSelected {
+                                            Text("Выбрано")
+                                                .font(.system(size: 10, weight: .medium))
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                    .padding(.horizontal, 11)
+                                    .padding(.vertical, 10)
+                                    .background(isSelected ? Color.accentColor.opacity(0.09) : Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 9))
+                                    .contentShape(RoundedRectangle(cornerRadius: 9))
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityAddTraits(isSelected ? .isSelected : [])
+                            }
+                        }
+                    }
                 }
             }
-            .disabled(columns.isEmpty)
+            .padding(20)
+
+            Divider().opacity(0.65)
             HStack {
+                Text("⌘↩︎")
+                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(.tertiary)
+                Text("создать")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
                 Spacer()
                 Button("Отмена", role: .cancel) { dismiss() }
-                Button("Создать") {
-                    guard let selectedColumnID, onCreate(title, details, selectedColumnID) else { return }
-                    dismiss()
-                }
-                .keyboardShortcut(.defaultAction)
-                .buttonStyle(.borderedProminent)
-                .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || selectedColumnID == nil)
+                    .keyboardShortcut(.cancelAction)
+                Button("Создать задачу", systemImage: "plus", action: createTask)
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(normalizedTitle.isEmpty || selectedColumnID == nil)
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 13)
+            .background(.bar)
         }
-        .padding(26)
-        .frame(width: 460)
+        .frame(minWidth: 500, idealWidth: 500, maxWidth: 500, minHeight: 490, idealHeight: 560)
         .background(JungoCanvasBackground())
         .onAppear {
             if selectedColumnID == nil { selectedColumnID = columns.first?.id }
         }
+    }
+
+    private func createTask() {
+        guard !normalizedTitle.isEmpty,
+              let selectedColumnID,
+              onCreate(normalizedTitle, details.trimmingCharacters(in: .whitespacesAndNewlines), selectedColumnID) else { return }
+        dismiss()
     }
 }
