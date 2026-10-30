@@ -680,6 +680,12 @@ struct RootView: View {
                         .font(.title2)
                     Text(hasTasksBeforeFilters && hasActiveFilters ? "Нет совпадений" : "Пусто")
                         .font(.subheadline.weight(.medium))
+                    if targetedDropColumnID == column.id && !hasActiveFilters {
+                        Label("Отпустите, чтобы переместить", systemImage: "arrow.down.to.line")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(Color.accentColor)
+                            .transition(.opacity)
+                    }
                     if hasTasksBeforeFilters && hasActiveFilters {
                         Button("Сбросить фильтры", action: clearFilters)
                             .buttonStyle(.bordered)
@@ -727,7 +733,7 @@ struct RootView: View {
                     if targetedDropTaskID == task.id {
                         Capsule()
                             .fill(Color.accentColor)
-                            .frame(height: 3)
+                            .frame(height: JungoDesign.dragIndicatorHeight)
                             .padding(.horizontal, 7)
                             .offset(y: -2)
                             .shadow(color: Color.accentColor.opacity(0.25), radius: 3, y: 1)
@@ -793,13 +799,13 @@ struct RootView: View {
         .padding(12)
         .frame(maxHeight: .infinity, alignment: .top)
         .background {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
+            RoundedRectangle(cornerRadius: JungoDesign.columnRadius, style: .continuous)
                 .fill(Color.accentColor.opacity(targetedDropColumnID == column.id ? 0.055 : 0))
                 .padding(1)
         }
-        .jungoTaskSurface(radius: 20)
+        .jungoTaskSurface(radius: JungoDesign.columnRadius)
         .overlay {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
+            RoundedRectangle(cornerRadius: JungoDesign.columnRadius, style: .continuous)
                 .strokeBorder(
                     Color.accentColor.opacity(targetedDropColumnID == column.id ? 0.72 : 0),
                     lineWidth: targetedDropColumnID == column.id ? 2 : 0
