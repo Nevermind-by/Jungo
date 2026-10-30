@@ -6,6 +6,9 @@ import AppKit
 enum JungoDesign {
     static let panelRadius: CGFloat = 22
     static let cardRadius: CGFloat = 15
+    static let columnRadius: CGFloat = 20
+    static let focusRingWidth: CGFloat = 2
+    static let dragIndicatorHeight: CGFloat = 3
     static let controlRadius: CGFloat = 12
     static let sectionRadius: CGFloat = 18
     static let contentSpacing: CGFloat = 18
