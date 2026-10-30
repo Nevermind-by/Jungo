@@ -3,6 +3,7 @@ import SwiftData
 import AppKit
 
 struct VaultSettingsView: View {
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @State private var isMovingVault = false
     @State private var errorMessage: String?
@@ -100,7 +101,7 @@ struct VaultSettingsView: View {
 
             HStack {
                 Spacer()
-                Button("Готово") { NSApp.keyWindow?.close() }
+                Button("Готово") { dismiss() }
                     .keyboardShortcut(.defaultAction)
             }
             .padding(.horizontal, 20)
