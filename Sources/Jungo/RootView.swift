@@ -1342,7 +1342,7 @@ private struct ChecklistDraft: Identifiable {
 private struct TaskEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \\TaskChecklistItem.sortOrder) private var allChecklistItems: [TaskChecklistItem]
+    @Query(sort: \TaskChecklistItem.sortOrder) private var allChecklistItems: [TaskChecklistItem]
 
     let task: TaskCard
     let onSave: () -> Bool
@@ -1362,7 +1362,7 @@ private struct TaskEditorSheet: View {
     }
 
     private var completedCount: Int {
-        draftChecklistItems.filter(\\.isCompleted).count
+        draftChecklistItems.filter(\.isCompleted).count
     }
 
     private var isTitleValid: Bool {
@@ -1501,7 +1501,7 @@ private struct TaskEditorSheet: View {
                                     .font(.system(size: 11, weight: .medium))
                                     .foregroundStyle(.secondary)
                                 Spacer()
-                                Text("\\(completedCount) из \\(draftChecklistItems.count)")
+                                Text("\(completedCount) из \(draftChecklistItems.count)")
                                     .font(.system(size: 11, weight: .semibold).monospacedDigit())
                                     .foregroundStyle(.secondary)
                             }
@@ -1515,7 +1515,7 @@ private struct TaskEditorSheet: View {
                                     Toggle("Выполнено", isOn: $item.isCompleted)
                                         .labelsHidden()
                                         .toggleStyle(.checkbox)
-                                        .accessibilityLabel("Выполнено: \\(item.title)")
+                                        .accessibilityLabel("Выполнено: \(item.title)")
                                     TextField("Пункт чек-листа", text: $item.title)
                                         .textFieldStyle(.plain)
                                         .font(.system(size: 12))
@@ -1529,7 +1529,7 @@ private struct TaskEditorSheet: View {
                                     }
                                     .buttonStyle(.plain)
                                     .help("Удалить пункт")
-                                    .accessibilityLabel("Удалить пункт: \\(item.title)")
+                                    .accessibilityLabel("Удалить пункт: \(item.title)")
                                 }
                                 .padding(.vertical, 5)
                                 if item.id != draftChecklistItems.last?.id {
@@ -1638,7 +1638,7 @@ private struct TaskEditorSheet: View {
         }
         task.dueDate = draftHasDueDate ? draftDueDate : nil
 
-        let draftIDs = Set(draftChecklistItems.map(\\.id))
+        let draftIDs = Set(draftChecklistItems.map(\.id))
         for item in checklistItems where !draftIDs.contains(item.id) {
             modelContext.delete(item)
         }
