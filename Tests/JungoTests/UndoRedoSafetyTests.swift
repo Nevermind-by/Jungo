@@ -11,6 +11,7 @@ final class UndoRedoSafetyTests: XCTestCase {
         let container = try ModelContainer(for: schema, configurations: [configuration])
         let context = container.mainContext
         let undoManager = UndoManager()
+        undoManager.groupsByEvent = false
         context.undoManager = undoManager
         return (container, context, undoManager)
     }
@@ -31,12 +32,15 @@ final class UndoRedoSafetyTests: XCTestCase {
             try context.save()
             undoManager.removeAllActions()
 
+            // Mirror one user action as a single explicit undo group.
+            undoManager.beginUndoGrouping()
             // Mirrors deleteSelectedBoard(): remove children before their parents.
             context.delete(checklist)
             context.delete(task)
             context.delete(column)
             context.delete(board)
             try context.save()
+            undoManager.endUndoGrouping()
 
             XCTAssertEqual(try context.fetch(FetchDescriptor<Board>()).count, 0)
             XCTAssertEqual(try context.fetch(FetchDescriptor<BoardColumn>()).count, 0)
@@ -84,9 +88,11 @@ final class UndoRedoSafetyTests: XCTestCase {
             try context.save()
             undoManager.removeAllActions()
 
+            undoManager.beginUndoGrouping()
             task.columnID = destination.id
             task.sortOrder = 0
             try context.save()
+            undoManager.endUndoGrouping()
 
             undoManager.undo()
             XCTAssertEqual(task.columnID, source.id)
@@ -111,8 +117,10 @@ final class UndoRedoSafetyTests: XCTestCase {
             try context.save()
             undoManager.removeAllActions()
 
+            undoManager.beginUndoGrouping()
             task.isInTrash = true
             try context.save()
+            undoManager.endUndoGrouping()
 
             undoManager.undo()
             XCTAssertFalse(task.isInTrash)
