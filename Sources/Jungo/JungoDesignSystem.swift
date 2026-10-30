@@ -97,9 +97,9 @@ struct JungoSectionSurface<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 13) {
             VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(.system(size: 13, weight: .semibold))
+                Text(title).font(.system(.subheadline).weight(.semibold))
                 if let subtitle {
-                    Text(subtitle).font(.system(size: 11)).foregroundStyle(.secondary)
+                    Text(subtitle).font(.footnote).foregroundStyle(.secondary)
                 }
             }
             content
