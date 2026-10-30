@@ -33,7 +33,7 @@ struct SaveTaskFilterSheet: View {
                 JungoSectionSurface("Название фильтра") {
                     TextField("Например: Срочные задачи", text: $name)
                         .textFieldStyle(.plain)
-                        .font(.system(size: 15, weight: .medium))
+                        .font(.system(.body).weight(.medium))
                         .padding(10)
                         .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 9))
                         .onSubmit(save)
@@ -43,7 +43,7 @@ struct SaveTaskFilterSheet: View {
             Spacer(minLength: 0)
             sheetFooter(cancel: { dismiss() }, confirmTitle: "Сохранить", confirm: save, disabled: name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
-        .frame(width: 430, minHeight: 250, idealHeight: 280)
+        .frame(minWidth: 360, idealWidth: 430, maxWidth: 520, minHeight: 250, idealHeight: 280, maxHeight: 380)
         .background(JungoCanvasBackground())
     }
 
@@ -76,18 +76,18 @@ struct ManageSavedFiltersSheet: View {
                         } label: {
                             HStack(spacing: 11) {
                                 Image(systemName: "line.3.horizontal.decrease.circle.fill")
-                                    .font(.system(size: 18))
+                                    .font(.title3)
                                     .foregroundStyle(Color.accentColor)
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text(filter.name).font(.system(size: 12, weight: .semibold))
+                                    Text(filter.name).font(.system(.subheadline).weight(.semibold)).lineLimit(2).fixedSize(horizontal: false, vertical: true)
                                     Text(filter.summary)
-                                        .font(.system(size: 10))
+                                        .font(.caption)
                                         .foregroundStyle(.secondary)
                                         .lineLimit(2)
                                 }
                                 Spacer()
                                 Image(systemName: "arrow.up.right")
-                                    .font(.system(size: 10, weight: .semibold))
+                                    .font(.system(.caption).weight(.semibold))
                                     .foregroundStyle(.tertiary)
                             }
                             .contentShape(Rectangle())
@@ -97,7 +97,7 @@ struct ManageSavedFiltersSheet: View {
                             onDelete(filter)
                         } label: {
                             Image(systemName: "trash")
-                                .font(.system(size: 12))
+                                .font(.subheadline)
                                 .frame(width: 28, height: 28)
                         }
                         .buttonStyle(.borderless)
@@ -111,7 +111,7 @@ struct ManageSavedFiltersSheet: View {
             }
             sheetFooter(cancel: { dismiss() }, confirmTitle: "Готово", confirm: { dismiss() })
         }
-        .frame(width: 510, height: 420)
+        .frame(minWidth: 420, idealWidth: 510, maxWidth: 620, minHeight: 360, idealHeight: 420, maxHeight: 600)
         .background(JungoCanvasBackground())
     }
 }
@@ -133,7 +133,7 @@ struct LabelColorSettingsSheet: View {
                         Circle()
                             .fill(TaskLabelPalette.color(for: label, storedJSON: labelColorsJSON))
                             .frame(width: 10, height: 10)
-                        Text(label).font(.system(size: 12, weight: .medium))
+                        Text(label).font(.system(.subheadline).weight(.medium)).lineLimit(2).fixedSize(horizontal: false, vertical: true).layoutPriority(1)
                         Spacer()
                         Picker("Цвет метки \(label)", selection: colorBinding(for: label)) {
                             Text("Авто").tag("")
@@ -142,7 +142,7 @@ struct LabelColorSettingsSheet: View {
                             }
                         }
                         .labelsHidden()
-                        .frame(width: 145)
+                        .frame(minWidth: 120, idealWidth: 145)
                     }
                     .padding(.vertical, 4)
                     .listRowBackground(Color.clear)
@@ -162,7 +162,7 @@ struct LabelColorSettingsSheet: View {
             .padding(.vertical, 13)
             .background(.bar)
         }
-        .frame(width: 490, height: 450)
+        .frame(minWidth: 420, idealWidth: 490, maxWidth: 600, minHeight: 380, idealHeight: 450, maxHeight: 620)
         .background(JungoCanvasBackground())
     }
 
@@ -186,17 +186,17 @@ struct LabelColorSettingsSheet: View {
 private func sheetHeader(_ title: String, subtitle: String, symbol: String) -> some View {
     HStack(spacing: 12) {
         Image(systemName: symbol)
-            .font(.system(size: 17, weight: .semibold))
+            .font(.system(.title3).weight(.semibold))
             .foregroundStyle(Color.accentColor)
             .frame(width: 40, height: 40)
             .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
         VStack(alignment: .leading, spacing: 2) {
-            Text(title).font(.system(size: 15, weight: .bold))
-            Text(subtitle).font(.system(size: 10)).foregroundStyle(.secondary)
+            Text(title).font(.system(.body).weight(.bold))
+            Text(subtitle).font(.caption).foregroundStyle(.secondary)
         }
         Spacer()
         Text("JUNGO")
-            .font(.system(size: 9, weight: .bold, design: .rounded))
+            .font(.system(.caption2, design: .rounded).weight(.bold))
             .tracking(1.4)
             .foregroundStyle(.tertiary)
     }

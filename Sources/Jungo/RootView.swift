@@ -260,7 +260,9 @@ struct RootView: View {
                 ForEach(activeBoards) { board in
                     Label {
                         Text(board.title)
-                            .font(.system(size: 12, weight: selectedBoardID == board.id ? .semibold : .medium))
+                            .font(.system(.subheadline).weight(selectedBoardID == board.id ? .semibold : .medium))
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
                     } icon: {
                         Image(systemName: "rectangle.split.3x1")
                             .foregroundStyle(Color.accentColor.opacity(0.85))
@@ -290,7 +292,7 @@ struct RootView: View {
                     ForEach(archivedBoards) { board in
                         Label {
                             Text(board.title)
-                                .font(.system(size: 11, weight: .medium))
+                                .font(.system(.footnote).weight(.medium))
                         } icon: {
                             Image(systemName: "archivebox")
                                 .foregroundStyle(.tertiary)
@@ -368,7 +370,7 @@ struct RootView: View {
                     .help("Импортировать архив")
                 }
                 .buttonStyle(.borderless)
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(.footnote).weight(.medium))
                 .controlSize(.small)
             }
             .padding(12)
@@ -642,11 +644,11 @@ struct RootView: View {
                     .fill(columnColor(column.sortOrder))
                     .frame(width: 4, height: 19)
                 Text(column.title)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(.subheadline).weight(.semibold))
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
                 Text("\(columnTasks.count)")
-                    .font(.system(size: 10, weight: .semibold).monospacedDigit())
+                    .font(.system(.caption, design: .monospaced).weight(.semibold))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 7)
                     .padding(.vertical, 3)
@@ -1176,22 +1178,24 @@ struct RootView: View {
                     ForEach(tasks) { task in
                         HStack(spacing: 13) {
                             Image(systemName: "doc.text")
-                                .font(.system(size: 15, weight: .medium))
+                                .font(.system(.body).weight(.medium))
                                 .foregroundStyle(.secondary)
                                 .frame(width: 34, height: 34)
                                 .background(Color.secondary.opacity(0.09), in: RoundedRectangle(cornerRadius: 10))
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(task.title)
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .lineLimit(2)
+                                    .font(.system(.subheadline).weight(.semibold))
+                                    .lineLimit(3)
+                                    .fixedSize(horizontal: false, vertical: true)
                                 if !task.details.isEmpty {
                                     Text(task.details)
-                                        .font(.system(size: 10))
+                                        .font(.caption)
                                         .foregroundStyle(.secondary)
-                                        .lineLimit(2)
+                                        .lineLimit(3)
+                                        .fixedSize(horizontal: false, vertical: true)
                                 }
                                 Text("Доска: \(board.title) · В корзине")
-                                    .font(.system(size: 9, weight: .medium))
+                                    .font(.system(.caption2).weight(.medium))
                                     .foregroundStyle(.tertiary)
                             }
                             Spacer(minLength: 8)
@@ -1474,7 +1478,7 @@ private struct TaskCardView: View {
             } else {
                 HStack {
                     Image(systemName: "clock")
-                        .font(.system(size: 9))
+                        .font(.caption2)
                     Text(task.createdAt, format: .dateTime.month(.abbreviated).day())
                         .font(.system(size: metadataFontSize, weight: .medium))
                 }
@@ -1521,6 +1525,7 @@ private struct ChecklistDraft: Identifiable {
 
 private struct TaskEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \TaskChecklistItem.sortOrder) private var allChecklistItems: [TaskChecklistItem]
 
@@ -1558,12 +1563,12 @@ private struct TaskEditorSheet: View {
                         VStack(alignment: .leading, spacing: 10) {
                             TextField("Название задачи", text: $draftTitle)
                                 .textFieldStyle(.plain)
-                                .font(.system(size: 19, weight: .semibold))
+                                .font(.system(.title2).weight(.semibold))
                                 .padding(12)
                                 .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 11))
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("МЕТКИ")
-                                    .font(.system(size: 9, weight: .bold))
+                                    .font(.system(.caption2).weight(.bold))
                                     .tracking(0.8)
                                     .foregroundStyle(.tertiary)
                                 TextField("Например: дизайн, срочно, личное", text: $draftLabelsText)
@@ -1577,7 +1582,7 @@ private struct TaskEditorSheet: View {
                         VStack(spacing: 10) {
                             HStack {
                                 Label("Содержание", systemImage: "text.alignleft")
-                                    .font(.system(size: 11, weight: .medium))
+                                    .font(.system(.footnote).weight(.medium))
                                     .foregroundStyle(.secondary)
                                 Spacer()
                                 Picker("Режим описания", selection: $showDescriptionPreview) {
@@ -1607,7 +1612,7 @@ private struct TaskEditorSheet: View {
                                 .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 11))
                             } else {
                                 TextEditor(text: $draftDetails)
-                                    .font(.system(size: 12.5))
+                                    .font(.subheadline)
                                     .scrollContentBackground(.hidden)
                                     .padding(7)
                                     .frame(minHeight: 145, maxHeight: 190)
@@ -1615,7 +1620,7 @@ private struct TaskEditorSheet: View {
                                     .overlay(alignment: .topLeading) {
                                         if draftDetails.isEmpty {
                                             Text("Опиши задачу, добавь детали или Markdown…")
-                                                .font(.system(size: 12.5))
+                                                .font(.subheadline)
                                                 .foregroundStyle(.tertiary)
                                                 .padding(.horizontal, 12)
                                                 .padding(.vertical, 15)
@@ -1630,7 +1635,7 @@ private struct TaskEditorSheet: View {
                         VStack(alignment: .leading, spacing: 12) {
                             VStack(alignment: .leading, spacing: 7) {
                                 Text("ПРИОРИТЕТ")
-                                    .font(.system(size: 9, weight: .bold))
+                                    .font(.system(.caption2).weight(.bold))
                                     .tracking(0.8)
                                     .foregroundStyle(.tertiary)
                                 HStack(spacing: 7) {
@@ -1643,7 +1648,7 @@ private struct TaskEditorSheet: View {
                                                 Image(systemName: priority.symbol)
                                                 Text(priority.title)
                                             }
-                                            .font(.system(size: 11, weight: .semibold))
+                                            .font(.system(.footnote).weight(.semibold))
                                             .frame(maxWidth: .infinity)
                                             .padding(.vertical, 9)
                                             .foregroundStyle(selected ? Color.accentColor : Color.secondary)
@@ -1661,28 +1666,28 @@ private struct TaskEditorSheet: View {
                             Divider().opacity(0.6)
                             Toggle(isOn: $draftHasDueDate) {
                                 Label("Срок выполнения", systemImage: "calendar")
-                                    .font(.system(size: 12, weight: .medium))
+                                    .font(.system(.subheadline).weight(.medium))
                             }
                             .toggleStyle(.switch)
                             if draftHasDueDate {
                                 DatePicker("Выполнить до", selection: $draftDueDate, displayedComponents: .date)
                                     .datePickerStyle(.compact)
                                     .padding(.leading, 25)
-                                    .transition(.opacity.combined(with: .move(edge: .top)))
+                                    .transition(reduceMotion ? .identity : .opacity.combined(with: .move(edge: .top)))
                             }
                         }
-                        .animation(.snappy(duration: 0.2), value: draftHasDueDate)
+                        .animation(reduceMotion ? nil : .snappy(duration: 0.2), value: draftHasDueDate)
                     }
 
                     JungoSectionSurface("Чек-лист", subtitle: "Разбей работу на небольшие шаги") {
                         VStack(alignment: .leading, spacing: 10) {
                             HStack(alignment: .firstTextBaseline) {
                                 Text("Прогресс")
-                                    .font(.system(size: 11, weight: .medium))
+                                    .font(.system(.footnote).weight(.medium))
                                     .foregroundStyle(.secondary)
                                 Spacer()
                                 Text("\(completedCount) из \(draftChecklistItems.count)")
-                                    .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                                    .font(.system(.footnote, design: .monospaced).weight(.semibold))
                                     .foregroundStyle(.secondary)
                             }
                             if !draftChecklistItems.isEmpty {
@@ -1698,13 +1703,13 @@ private struct TaskEditorSheet: View {
                                         .accessibilityLabel("Выполнено: \(item.title)")
                                     TextField("Пункт чек-листа", text: $item.title)
                                         .textFieldStyle(.plain)
-                                        .font(.system(size: 12))
+                                        .font(.subheadline)
                                     Spacer(minLength: 0)
                                     Button(role: .destructive) {
                                         draftChecklistItems.removeAll { $0.id == item.id }
                                     } label: {
                                         Image(systemName: "minus.circle")
-                                            .font(.system(size: 13))
+                                            .font(.subheadline)
                                             .foregroundStyle(.tertiary)
                                     }
                                     .buttonStyle(.plain)
@@ -1721,7 +1726,7 @@ private struct TaskEditorSheet: View {
                                     .foregroundStyle(Color.accentColor)
                                 TextField("Добавить пункт…", text: $newChecklistTitle)
                                     .textFieldStyle(.plain)
-                                    .font(.system(size: 12))
+                                    .font(.subheadline)
                                     .onSubmit(addChecklistItem)
                                 Button("Добавить", action: addChecklistItem)
                                     .buttonStyle(.bordered)
@@ -1739,7 +1744,7 @@ private struct TaskEditorSheet: View {
             Divider().opacity(0.65)
             HStack {
                 Text("Изменения сохраняются только по кнопке «Сохранить».")
-                    .font(.system(size: 10))
+                    .font(.caption)
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)
                 Spacer()
@@ -1775,20 +1780,20 @@ private struct TaskEditorSheet: View {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(Color.accentColor.opacity(0.12))
                 Image(systemName: "square.and.pencil")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.system(.title3).weight(.semibold))
                     .foregroundStyle(Color.accentColor)
             }
             .frame(width: 40, height: 40)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Редактор задачи")
-                    .font(.system(size: 16, weight: .bold))
+                    .font(.system(.headline).weight(.bold))
                 Text("Настрой детали и план выполнения")
-                    .font(.system(size: 11))
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
             }
             Spacer()
             Text("JUNGO")
-                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .font(.system(.caption2, design: .rounded).weight(.bold))
                 .tracking(1.5)
                 .foregroundStyle(.tertiary)
         }
@@ -1895,20 +1900,20 @@ private struct QuickAddTaskSheet: View {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .fill(Color.accentColor.opacity(0.12))
                     Image(systemName: "bolt.fill")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.system(.title3).weight(.semibold))
                         .foregroundStyle(Color.accentColor)
                 }
                 .frame(width: 40, height: 40)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Быстрое добавление")
-                        .font(.system(size: 16, weight: .bold))
+                        .font(.system(.headline).weight(.bold))
                     Text("Запиши задачу и возвращайся к работе")
-                        .font(.system(size: 11))
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
                 Text("JUNGO")
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .font(.system(.caption2, design: .rounded).weight(.bold))
                     .tracking(1.5)
                     .foregroundStyle(.tertiary)
             }
@@ -1920,19 +1925,19 @@ private struct QuickAddTaskSheet: View {
                 JungoSectionSurface("Новая задача", subtitle: "Начни с короткого и понятного названия") {
                     TextField("Что нужно сделать?", text: $title)
                         .textFieldStyle(.plain)
-                        .font(.system(size: 19, weight: .semibold))
+                        .font(.system(.title2).weight(.semibold))
                         .padding(12)
                         .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 11))
                         .onSubmit(createTask)
                     VStack(alignment: .leading, spacing: 6) {
                         Text("ОПИСАНИЕ")
-                            .font(.system(size: 9, weight: .bold))
+                            .font(.system(.caption2).weight(.bold))
                             .tracking(0.8)
                             .foregroundStyle(.tertiary)
                         TextField("Добавь контекст (необязательно)", text: $details, axis: .vertical)
                             .textFieldStyle(.plain)
                             .lineLimit(2...4)
-                            .font(.system(size: 12))
+                            .font(.subheadline)
                             .padding(10)
                             .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 9))
                     }
@@ -1950,15 +1955,17 @@ private struct QuickAddTaskSheet: View {
                                 } label: {
                                     HStack(spacing: 10) {
                                         Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
-                                            .font(.system(size: 15))
+                                            .font(.body)
                                             .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
                                         Text(column.title)
-                                            .font(.system(size: 12, weight: isSelected ? .semibold : .medium))
+                                            .font(.system(.subheadline).weight(isSelected ? .semibold : .medium))
+                                            .lineLimit(2)
+                                            .fixedSize(horizontal: false, vertical: true)
                                             .foregroundStyle(.primary)
                                         Spacer()
                                         if isSelected {
                                             Text("Выбрано")
-                                                .font(.system(size: 10, weight: .medium))
+                                                .font(.system(.caption).weight(.medium))
                                                 .foregroundStyle(.secondary)
                                         }
                                     }
@@ -1979,10 +1986,10 @@ private struct QuickAddTaskSheet: View {
             Divider().opacity(0.65)
             HStack {
                 Text("⌘↩︎")
-                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    .font(.system(.caption, design: .monospaced).weight(.semibold))
                     .foregroundStyle(.tertiary)
                 Text("создать")
-                    .font(.system(size: 10))
+                    .font(.caption)
                     .foregroundStyle(.tertiary)
                 Spacer()
                 Button("Отмена", role: .cancel) { dismiss() }

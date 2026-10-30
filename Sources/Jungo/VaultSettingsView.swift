@@ -19,20 +19,20 @@ struct VaultSettingsView: View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
                 Image(systemName: "externaldrive.fill")
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(.system(.title3).weight(.semibold))
                     .foregroundStyle(Color.accentColor)
                     .frame(width: 42, height: 42)
                     .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 13))
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Хранилище Jungo")
-                        .font(.system(size: 16, weight: .bold))
+                        .font(.system(.headline).weight(.bold))
                     Text("Локальная база данных и резервное копирование")
-                        .font(.system(size: 11))
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
                 Text("LOCAL")
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .font(.system(.caption2, design: .rounded).weight(.bold))
                     .tracking(1.3)
                     .foregroundStyle(.tertiary)
             }
@@ -45,17 +45,17 @@ struct VaultSettingsView: View {
                     JungoSectionSurface("Текущее расположение", subtitle: "Активная база, используемая приложением") {
                         VStack(alignment: .leading, spacing: 10) {
                             Label("Папка хранилища", systemImage: "folder")
-                                .font(.system(size: 11, weight: .semibold))
+                                .font(.system(.footnote).weight(.semibold))
                                 .foregroundStyle(.secondary)
                             Text(folderPath)
-                                .font(.system(size: 11, design: .monospaced))
+                                .font(.system(.footnote, design: .monospaced))
                                 .textSelection(.enabled)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(10)
                                 .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 9))
                             HStack {
                                 Label(VaultStore.currentStoreURL.lastPathComponent, systemImage: "cylinder.split.1x2")
-                                    .font(.system(size: 11, weight: .medium))
+                                    .font(.system(.footnote).weight(.medium))
                                 Spacer()
                                 Button("Открыть в Finder", systemImage: "folder") {
                                     VaultStore.openCurrentFolderInFinder()
@@ -67,7 +67,7 @@ struct VaultSettingsView: View {
 
                     JungoSectionSurface("Перенос хранилища", subtitle: "Перемести локальную базу в другую папку") {
                         Text("Доски, колонки, задачи, корзина и чек-листы будут перенесены с сохранением ID и связей. Исходная база останется на месте.")
-                            .font(.system(size: 11))
+                            .font(.footnote)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                         Button("Выбрать новую папку…", systemImage: "folder.badge.gearshape") {
@@ -79,19 +79,19 @@ struct VaultSettingsView: View {
                             HStack(spacing: 8) {
                                 ProgressView().controlSize(.small)
                                 Text("Перенос данных…")
-                                    .font(.system(size: 10))
+                                    .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
                         }
                         Label("После проверки новой базы Jungo завершит работу. Открой приложение снова, чтобы продолжить.", systemImage: "info.circle")
-                            .font(.system(size: 10))
+                            .font(.caption)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
                     JungoSectionSurface("Резервная копия", subtitle: "Отдельный файл для переноса или восстановления") {
                         Label("Используй «Экспорт» на боковой панели, чтобы сохранить JSON-копию досок и задач. Экспорт не меняет расположение активной базы и не заменяет перенос Vault.", systemImage: "archivebox")
-                            .font(.system(size: 11))
+                            .font(.footnote)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -108,7 +108,7 @@ struct VaultSettingsView: View {
             .padding(.vertical, 12)
             .background(.bar)
         }
-        .frame(width: 640, height: 540)
+        .frame(minWidth: 520, idealWidth: 640, maxWidth: 760, minHeight: 460, idealHeight: 540, maxHeight: 760)
         .background(JungoCanvasBackground())
         .confirmationDialog(
             "Перенести хранилище Jungo?",
@@ -210,7 +210,7 @@ struct VaultUnavailableView: View {
             .keyboardShortcut(.defaultAction)
         }
         .padding(36)
-        .frame(minWidth: 620, minHeight: 360)
+        .frame(minWidth: 520, minHeight: 360)
         .background(JungoCanvasBackground())
         .alert("Не удалось восстановить доступ", isPresented: Binding(
             get: { recoveryError != nil },
