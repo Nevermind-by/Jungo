@@ -37,8 +37,8 @@ extension JungoArchiveDocument {
         }
     }
 
-    /// Imports additional boards in an isolated context so a failed import cannot
-    /// roll back unrelated edits in the UI context or leave a partial import there.
+    /// Builds the complete remapped import before inserting anything, then saves it
+    /// through an isolated context so failed imports cannot affect the UI context.
     @discardableResult
     func importInto(_ context: ModelContext) throws -> UUID? {
         try validate()
@@ -47,81 +47,63 @@ extension JungoArchiveDocument {
         importContext.undoManager = nil
 
         do {
-            var boardIDMap: [UUID: UUID] = [:]
-            var columnIDMap: [UUID: UUID] = [:]
-            var taskIDMap: [UUID: UUID] = [:]
-
             let existingBoards = try importContext.fetch(FetchDescriptor<Board>())
-            let nextBoardSortOrder = (existingBoards.map { $0.sortOrder }.max() ?? -1) + 1
+            let nextBoardSortOrder = (existingBoards.map(\.sortOrder).max() ?? -1) + 1
+            let plan = try JungoArchiveImportPlan.build(
+                from: self,
+                nextBoardSortOrder: nextBoardSortOrder
+            )
 
-            var lastImportedBoardID: UUID?
-            for (offset, record) in boards.sorted(by: { $0.sortOrder < $1.sortOrder }).enumerated() {
-                let newID = UUID()
-                lastImportedBoardID = newID
-                boardIDMap[record.id] = newID
+            // The plan has already resolved and validated every relationship.
+            // No source ID lookup or relationship failure can occur after insertion begins.
+            for record in plan.boards {
                 importContext.insert(Board(
-                    id: newID,
+                    id: record.id,
                     title: record.title,
-                    sortOrder: nextBoardSortOrder + offset,
+                    sortOrder: record.sortOrder,
                     createdAt: record.createdAt,
                     isArchived: record.isArchived ?? false
                 ))
             }
 
-            for record in columns.sorted(by: { $0.sortOrder < $1.sortOrder }) {
-                guard let boardID = boardIDMap[record.boardID] else {
-                    throw ArchiveError.brokenReferences
-                }
-                let newID = UUID()
-                columnIDMap[record.id] = newID
+            for record in plan.columns {
                 importContext.insert(BoardColumn(
-                    id: newID,
+                    id: record.id,
                     title: record.title,
                     sortOrder: record.sortOrder,
-                    boardID: boardID
+                    boardID: record.boardID
                 ))
             }
 
-            for record in tasks {
-                guard let columnID = columnIDMap[record.columnID] else {
-                    throw ArchiveError.brokenReferences
-                }
-                let newID = UUID()
-                taskIDMap[record.id] = newID
+            for record in plan.tasks {
                 let importedTask = TaskCard(
-                    id: newID,
+                    id: record.id,
                     title: record.title,
                     details: record.details,
                     labelsText: record.labelsText ?? "",
                     priority: TaskPriority(rawValue: record.priorityRawValue) ?? .normal,
                     sortOrder: record.sortOrder,
-                    columnID: columnID,
+                    columnID: record.columnID,
                     createdAt: record.createdAt,
                     dueDate: record.dueDate,
                     isInTrash: record.isInTrash ?? false
                 )
-                // Keep unknown raw values intact for forward compatibility. The
-                // computed enum can display an unknown value as .normal, but an
-                // import/export cycle must not silently rewrite the stored value.
                 importedTask.priorityRawValue = record.priorityRawValue
                 importContext.insert(importedTask)
             }
 
-            for record in checklistItems ?? [] {
-                guard let taskID = taskIDMap[record.taskID] else {
-                    throw ArchiveError.brokenReferences
-                }
+            for record in plan.checklistItems {
                 importContext.insert(TaskChecklistItem(
-                    id: UUID(),
+                    id: record.id,
                     title: record.title,
                     isCompleted: record.isCompleted,
                     sortOrder: record.sortOrder,
-                    taskID: taskID
+                    taskID: record.taskID
                 ))
             }
 
             try importContext.save()
-            return lastImportedBoardID
+            return plan.lastImportedBoardID
         } catch {
             importContext.rollback()
             throw error
